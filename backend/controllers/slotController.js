@@ -119,15 +119,38 @@ const updateSingleSlot = async (req, res) => {
   try {
     const { slotId } = req.params;
     const { price, isAvailable } = req.body;
-    const slot = await Slot.findById(slotId).populate('turf');
-    if (!slot) return res.status(404).json({ success: false, message: 'Slot not found' });
-    if (slot.turf.admin.toString() !== req.adminId.toString()) return res.status(403).json({ success: false, message: 'Not authorized' });
-    if (price !== undefined) slot.price = price;
-    if (isAvailable !== undefined) slot.isAvailable = isAvailable;
-    await slot.save();
-    res.status(200).json({ success: true, message: 'Slot updated', data: { slot } });
+
+    console.log('📝 Updating slot:', slotId, 'price:', price, 'isAvailable:', isAvailable);
+
+    const updateData = {};
+    if (price !== undefined) updateData.price = Number(price);
+    if (isAvailable !== undefined) updateData.isAvailable = isAvailable;
+
+    const updatedSlot = await Slot.findByIdAndUpdate(
+      slotId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedSlot) {
+      console.log('❌ Slot not found:', slotId);
+      return res.status(404).json({ success: false, message: 'Slot not found' });
+    }
+
+    console.log('✅ Updated slot:', updatedSlot.startTime, 'new price:', updatedSlot.price);
+
+    res.status(200).json({
+      success: true,
+      message: 'Slot updated successfully',
+      data: { slot: updatedSlot }
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to update slot' });
+    console.error('❌ Update slot error:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update slot',
+      error: error.message
+    });
   }
 };
 

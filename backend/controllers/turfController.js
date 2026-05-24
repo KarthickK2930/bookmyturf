@@ -14,6 +14,7 @@ exports.getAllTurfs = async (req, res) => {
 
     const turfs = await Turf.find(query)
       .populate('admin', 'name email')
+      .populate('reviews.user', 'name') // ADD THIS
       .sort({ rating: -1 });
 
     res.status(200).json({

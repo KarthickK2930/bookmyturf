@@ -1,6 +1,9 @@
 const Booking = require('../models/Booking');
+const Turf = require('../models/Turf');
+const User = require('../models/User');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
+const { sendBookingConfirmation } = require('../services/emailService');
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -30,7 +33,7 @@ exports.verifyPayment = async (req, res) => {
         message: 'Invalid payment signature'
       });
     }
-
+      
     // Find booking
     const booking = await Booking.findById(bookingId);
     
@@ -56,6 +59,19 @@ exports.verifyPayment = async (req, res) => {
     await booking.save();
 
     console.log(`✅ Payment verified for booking ${bookingId}`);
+
+    try {
+      const user = await User.findById(booking.user);
+      const turf = await Turf.findById(booking.turf);
+      
+      if (user && user.email && turf) {
+        await sendBookingConfirmation(booking, user, turf);
+        console.log('📧 Confirmation email sent');
+      }
+    } catch (emailErr) {
+      console.error('Email sending failed:', emailErr.message);
+      // Don't block the response if email fails
+    }
 
     res.status(200).json({
       success: true,

@@ -8,41 +8,43 @@ exports.adminLogin = async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide email and password'
-      });
+      return res.status(400).json({ success: false, message: 'Please provide email and password' });
     }
 
+    // Find admin with password
     const admin = await User.findOne({ 
       email: email.toLowerCase(),
       role: { $in: ['admin', 'superadmin'] }
     }).select('+password');
 
+    console.log('Admin found:', admin ? 'Yes' : 'No');
+
     if (!admin) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password'
-      });
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
+    // Check password
+    const bcrypt = require('bcryptjs');
     const isPasswordValid = await bcrypt.compare(password, admin.password);
     
+    console.log('Password valid:', isPasswordValid);
+
     if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password'
-      });
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
-    admin.lastLogin = new Date();
-    await admin.save();
-
+    // Generate token
+    const jwt = require('jsonwebtoken');
     const token = jwt.sign(
       { userId: admin._id, role: admin.role, email: admin.email },
       process.env.JWT_SECRET,
       { expiresIn: '30d' }
     );
+
+    console.log('Token generated:', token ? 'Yes' : 'No');
+
+    admin.lastLogin = new Date();
+    await admin.save();
 
     res.status(200).json({
       success: true,
@@ -61,10 +63,7 @@ exports.adminLogin = async (req, res) => {
     });
   } catch (error) {
     console.error('Admin Login Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Login failed. Please try again.'
-    });
+    res.status(500).json({ success: false, message: 'Login failed' });
   }
 };
 

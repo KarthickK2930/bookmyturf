@@ -41,11 +41,7 @@ const turfSchema = new mongoose.Schema({
     required: true,
     default: '23:59'
   },
-  pricePerHour: {
-    type: Number,
-    required: true,
-    min: 0
-  },
+  
   // Custom slot pricing
   customSlots: [{
     startTime: String,

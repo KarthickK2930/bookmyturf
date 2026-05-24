@@ -1,3 +1,4 @@
+// middleware/adminAuth.js
 const User = require('../models/User');
 
 const adminAuth = async (req, res, next) => {

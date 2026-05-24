@@ -2,7 +2,7 @@ const Booking = require('../models/Booking');
 const Turf = require('../models/Turf');
 const Offer = require('../models/Offer');
 const Razorpay = require('razorpay');
-
+const Slot = require('../models/Slot');
 // Initialize Razorpay with validation
 let razorpay = null;
 try {
@@ -43,7 +43,7 @@ exports.createBooking = async (req, res) => {
         message: 'Missing required fields. Please provide turfId, sport, date, startTime, and endTime.'
       });
     }
-
+    
     // Get turf details
     const turf = await Turf.findById(turfId);
     if (!turf) {
@@ -86,8 +86,15 @@ const existingBooking = await Booking.findOne({
       });
     }
 
+    
     // Calculate amounts
-    const totalAmount = Math.round(totalHours * turf.pricePerHour);
+        // Calculate amounts from slot prices
+    const slots = await Slot.find({
+      turf: turfId,
+      startTime: { $gte: startTime, $lt: endTime === '23:59' ? '24:00' : endTime }
+    }).sort({ startTime: 1 });
+
+    const totalAmount = slots.reduce((sum, slot) => sum + ((slot.price || 0) / 2), 0);
     const advanceAmount = Math.round(totalHours * 100); // ₹100 per hour
     let discount = 0;
 
@@ -139,7 +146,7 @@ const existingBooking = await Booking.findOne({
       startTime,
       endTime,
       totalHours,
-      pricePerHour: turf.pricePerHour,
+      pricePerHour: 0,
       totalAmount: finalAmount,
       advanceAmount,
       voucherCode: voucherCode || undefined,
