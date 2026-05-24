@@ -164,41 +164,22 @@ const ManageSlots = () => {
         <p className="text-gray-600 mb-6">Generate and manage booking slots for your turfs</p>
 
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-            <div>
-              <label className="block text-sm font-medium mb-2">Select Turf</label>
-              <select
-                value={selectedTurf?._id || ''}
-                onChange={handleTurfChange}
-                className="w-full px-4 py-2 border rounded-lg"
-              >
-                <option value="">-- Select Turf --</option>
-                {turfs.map(turf => (
-                  <option key={turf._id} value={turf._id}>{turf.name}</option>
-                ))}
-              </select>
-            </div>
-            {selectedTurf && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Default Price</label>
-                  <div className="px-4 py-2 bg-gray-50 rounded-lg font-bold">₹{selectedTurf.pricePerHour}/hr</div>
-                </div>
-                <button
-                  onClick={handleGenerateSlots}
-                  disabled={generating}
-                  className={`px-6 py-2 rounded-lg text-white font-medium ${
-                    slots.length > 0
-                      ? 'bg-orange-500 hover:bg-orange-600'
-                      : 'bg-primary-600 hover:bg-primary-700'
-                  } disabled:opacity-50`}
-                >
-                  {generating ? 'Generating...' : slots.length > 0 ? '🔄 Regenerate' : '⚡ Generate Slots'}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+    <div>
+      <label className="block text-sm font-medium mb-2">Select Turf</label>
+      <select value={selectedTurf?._id || ''} onChange={handleTurfChange} className="w-full px-4 py-2 border rounded-lg">
+        <option value="">-- Select Turf --</option>
+        {turfs.map(turf => (<option key={turf._id} value={turf._id}>{turf.name}</option>))}
+      </select>
+    </div>
+    {selectedTurf && (
+      <button onClick={handleGenerateSlots} disabled={generating}
+        className={`px-6 py-2 rounded-lg text-white font-medium ${slots.length > 0 ? 'bg-orange-500 hover:bg-orange-600' : 'bg-primary-600 hover:bg-primary-700'} disabled:opacity-50`}>
+        {generating ? 'Generating...' : slots.length > 0 ? '🔄 Regenerate' : '⚡ Generate Slots'}
+      </button>
+    )}
+  </div>
+</div>
 
         {selectedTurf && slots.length > 0 && (
           <>
