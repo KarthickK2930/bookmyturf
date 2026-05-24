@@ -38,8 +38,8 @@ app.use('/api/turfs', turfRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/payments', paymentRoutes);
-app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin/slots', slotRoutes);
 app.use('/api/offers', offerRoutes);
 
