@@ -16,7 +16,9 @@ const slotSchema = new mongoose.Schema({
   },
   price: {
     type: Number,
-    required: true
+    required: false,  // Change to false
+    default: 0,       // Add default 0
+    min: 0
   },
   isAvailable: {
     type: Boolean,
