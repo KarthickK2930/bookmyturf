@@ -64,4 +64,19 @@ router.post('/validate', auth, async (req, res) => {
   }
 });
 
+router.get('/available', async (req, res) => {
+  try {
+    const Offer = require('../models/Offer');
+    const offers = await Offer.find({ 
+      isActive: true,
+      validFrom: { $lte: new Date() },
+      validTill: { $gte: new Date() }
+    }).select('code description discountType discountValue');
+    
+    res.json({ success: true, data: { offers } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;
