@@ -13,82 +13,48 @@ router.get('/dashboard/revenue', adminController.getRevenueReport);
 router.get('/dashboard/recent-bookings', adminController.getRecentBookings);
 
 // ==================== TURF MANAGEMENT ROUTES ====================
-// Create new turf
 router.post('/turfs', adminController.createTurf);
-
-// Get all turfs (for this admin)
 router.get('/turfs', adminController.getAdminTurfs);
-
-// Get single turf
 router.get('/turfs/:id', adminController.getTurfDetails);
-
-// Update turf
 router.put('/turfs/:id', adminController.updateTurf);
-
-// Delete turf
 router.delete('/turfs/:id', adminController.deleteTurf);
-
-// Upload turf images
 router.post('/turfs/:id/images', adminController.uploadTurfImages);
-
-// Update turf timings
 router.put('/turfs/:id/timings', adminController.updateTurfTimings);
 
 // ==================== SLOT MANAGEMENT ROUTES ====================
-// Get slot configuration
 router.get('/slots/:turfId', adminController.getSlotConfiguration);
-
-// Update slot availability
 router.put('/slots/:turfId', adminController.updateSlotAvailability);
-
-// Block specific time slots
 router.post('/slots/:turfId/block', adminController.blockTimeSlots);
-
-// Unblock time slots
 router.post('/slots/:turfId/unblock', adminController.unblockTimeSlots);
 
 // ==================== BOOKING MANAGEMENT ROUTES ====================
-// Get all bookings
 router.get('/bookings', adminController.getAllBookings);
-
-// Get booking details
 router.get('/bookings/:id', adminController.getBookingDetails);
-
-// Update booking status
 router.put('/bookings/:id/status', adminController.updateBookingStatus);
-
-// Filter bookings
 router.post('/bookings/filter', adminController.filterBookings);
-
-// Export bookings
 router.get('/bookings/export/csv', adminController.exportBookingsCSV);
 
 // ==================== USER MANAGEMENT ROUTES ====================
-// Get all users who booked
-router.get('/users', adminController.getUsers);
+// ✅ FIXED: Get all users (for admin panel) - use getAllUsers
+router.get('/users', adminController.getAllUsers);
 
 // Get user booking history
 router.get('/users/:userId/bookings', adminController.getUserBookings);
 
 // ==================== OFFER MANAGEMENT ROUTES ====================
-// Create offer
 router.post('/offers', adminController.createOffer);
-
-// Get all offers
 router.get('/offers', adminController.getAllOffers);
-
-// Update offer
 router.put('/offers/:id', adminController.updateOffer);
-
-// Delete offer
 router.delete('/offers/:id', adminController.deleteOffer);
-
-// Toggle offer status
 router.put('/offers/:id/toggle', adminController.toggleOfferStatus);
 
 // ==================== REPORTS ROUTES ====================
 router.get('/reports/earnings', adminController.getEarningsReport);
 router.get('/reports/bookings-summary', adminController.getBookingsSummary);
 router.get('/reports/revenue-by-sport', adminController.getRevenueBySport);
-
+// ✅ ADD THESE MISSING REPORT ROUTES
+router.get('/reports/monthly-trend', adminController.getMonthlyTrend);
+router.get('/reports/top-turfs', adminController.getTopTurfs);
+// In routes/adminRoutes.js - Add this route
+router.put('/bookings/:bookingId/payment', adminController.updateManualPayment);
 module.exports = router;

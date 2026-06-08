@@ -7,7 +7,10 @@ const offerSchema = new mongoose.Schema({
     unique: true,
     uppercase: true
   },
-  description: String,
+  description: {
+    type: String,
+    default: ''
+  },
   discountType: {
     type: String,
     enum: ['percentage', 'fixed'],
@@ -21,17 +24,43 @@ const offerSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  maxDiscount: Number,
-  validFrom: Date,
-  validTill: Date,
+  maxDiscount: {
+    type: Number,
+    default: null
+  },
+  validFrom: {
+    type: Date,
+    required: true
+  },
+  validTill: {
+    type: Date,
+    required: true
+  },
   isActive: {
     type: Boolean,
     default: true
   },
-  usageLimit: Number,
+  usageLimit: {
+    type: Number,
+    default: null
+  },
   usedCount: {
     type: Number,
     default: 0
+  },
+  // ✅ ADD THESE FIELDS
+  perUserLimit: {
+    type: Number,
+    default: null
+  },
+  recurringType: {
+    type: String,
+    enum: ['none', 'weekly', 'monthly'],
+    default: 'none'
+  },
+  recurringDays: {
+    type: [String],
+    default: []
   }
 }, {
   timestamps: true

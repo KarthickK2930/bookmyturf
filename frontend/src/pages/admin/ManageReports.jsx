@@ -9,6 +9,8 @@ const ManageReports = () => {
   const [earnings, setEarnings] = useState(null);
   const [bookingsSummary, setBookingsSummary] = useState(null);
   const [revenueBySport, setRevenueBySport] = useState(null);
+  const [monthlyTrend, setMonthlyTrend] = useState(null);
+  const [topTurfs, setTopTurfs] = useState(null);
 
   useEffect(() => {
     fetchReports();
@@ -17,14 +19,18 @@ const ManageReports = () => {
   const fetchReports = async () => {
     try {
       setLoading(true);
-      const [earningsRes, summaryRes, sportRes] = await Promise.all([
+      const [earningsRes, summaryRes, sportRes, trendRes, turfsRes] = await Promise.all([
         api.get(`/admin/reports/earnings?period=${period}`),
         api.get('/admin/reports/bookings-summary'),
-        api.get('/admin/reports/revenue-by-sport')
+        api.get('/admin/reports/revenue-by-sport'),
+        api.get('/admin/reports/monthly-trend'),
+        api.get('/admin/reports/top-turfs')
       ]);
       setEarnings(earningsRes.data.data);
       setBookingsSummary(summaryRes.data.data.summary);
       setRevenueBySport(sportRes.data.data.revenueBySport);
+      setMonthlyTrend(trendRes.data.data);
+      setTopTurfs(turfsRes.data.data);
     } catch (err) {
       console.error('Failed to fetch reports:', err);
       toast.error('Failed to load reports');
@@ -113,7 +119,7 @@ const ManageReports = () => {
         </div>
 
         {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Bookings Summary */}
           <div className="bg-white rounded-xl shadow-md p-5">
             <h2 className="text-lg md:text-xl font-bold mb-4 flex items-center gap-2">
@@ -191,7 +197,65 @@ const ManageReports = () => {
           </div>
         </div>
 
-        {/* Quick Actions */}
+        {/* Monthly Trend Chart */}
+        {monthlyTrend && monthlyTrend.length > 0 && (
+          <div className="bg-white rounded-xl shadow-md p-5 mb-6">
+            <h2 className="text-lg md:text-xl font-bold mb-4 flex items-center gap-2">
+              <span>📈</span> Monthly Revenue Trend
+            </h2>
+            <div className="space-y-3">
+              {monthlyTrend.map((month, idx) => {
+                const maxRevenue = Math.max(...monthlyTrend.map(m => m.totalRevenue));
+                const percentage = (month.totalRevenue / maxRevenue) * 100;
+                return (
+                  <div key={idx}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="font-medium">{month.month}</span>
+                      <span className="text-primary-600 font-bold">₹{month.totalRevenue}</span>
+                    </div>
+                    <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
+                      <div 
+                        className="bg-gradient-to-r from-primary-500 to-primary-600 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">{month.bookingCount} bookings</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Top Performing Turfs */}
+        {topTurfs && topTurfs.length > 0 && (
+          <div className="bg-white rounded-xl shadow-md p-5">
+            <h2 className="text-lg md:text-xl font-bold mb-4 flex items-center gap-2">
+              <span>🏟️</span> Top Performing Turfs
+            </h2>
+            <div className="space-y-4">
+              {topTurfs.map((turf, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center font-bold text-primary-600">
+                      #{idx + 1}
+                    </div>
+                    <div>
+                      <p className="font-semibold">{turf.name}</p>
+                      <p className="text-xs text-gray-500">{turf.city}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-primary-600">₹{turf.totalRevenue}</p>
+                    <p className="text-xs text-gray-400">{turf.bookingCount} bookings</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Quick Period Selector */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
           <button 
             onClick={() => setPeriod('daily')} 

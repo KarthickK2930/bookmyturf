@@ -66,6 +66,98 @@ exports.getDashboardStats = async (req, res) => {
   }
 };
 
+// ==================== ADD THESE MISSING REPORT ENDPOINTS ====================
+
+// Monthly trend API
+exports.getMonthlyTrend = async (req, res) => {
+  try {
+    const adminId = req.adminId;
+    const turfs = await Turf.find({ admin: adminId });
+    const turfIds = turfs.map(turf => turf._id);
+    
+    const currentYear = new Date().getFullYear();
+    
+    const monthlyData = await Booking.aggregate([
+      {
+        $match: {
+          turf: { $in: turfIds },
+          status: { $in: ['confirmed', 'completed'] },
+          paymentStatus: { $in: ['full_paid', 'advance_paid'] },
+          date: {
+            $gte: new Date(currentYear, 0, 1),
+            $lt: new Date(currentYear + 1, 0, 1)
+          }
+        }
+      },
+      {
+        $group: {
+          _id: { $month: '$date' },
+          totalRevenue: { $sum: '$totalAmount' },
+          bookingCount: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+    
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const formattedData = monthlyData.map(item => ({
+      month: months[item._id - 1],
+      totalRevenue: item.totalRevenue,
+      bookingCount: item.bookingCount
+    }));
+    
+    res.json({ success: true, data: formattedData });
+  } catch (error) {
+    console.error('Monthly trend error:', error);
+    res.json({ success: true, data: [] });
+  }
+};
+
+// Top turfs API
+exports.getTopTurfs = async (req, res) => {
+  try {
+    const adminId = req.adminId;
+    const turfs = await Turf.find({ admin: adminId });
+    const turfIds = turfs.map(turf => turf._id);
+    
+    const topTurfs = await Booking.aggregate([
+      {
+        $match: {
+          turf: { $in: turfIds },
+          status: { $in: ['confirmed', 'completed'] },
+          paymentStatus: { $in: ['full_paid', 'advance_paid'] }
+        }
+      },
+      {
+        $group: {
+          _id: '$turf',
+          totalRevenue: { $sum: '$totalAmount' },
+          bookingCount: { $sum: 1 }
+        }
+      },
+      { $sort: { totalRevenue: -1 } },
+      { $limit: 5 }
+    ]);
+    
+    // Get turf details
+    const turfDetails = await Turf.find({ _id: { $in: topTurfs.map(t => t._id) }, admin: adminId });
+    
+    const formattedData = topTurfs.map(turf => {
+      const turfInfo = turfDetails.find(t => t._id.toString() === turf._id.toString());
+      return {
+        name: turfInfo?.name || 'Unknown',
+        city: turfInfo?.address?.city || 'Unknown',
+        totalRevenue: turf.totalRevenue,
+        bookingCount: turf.bookingCount
+      };
+    });
+    
+    res.json({ success: true, data: formattedData });
+  } catch (error) {
+    console.error('Top turfs error:', error);
+    res.json({ success: true, data: [] });
+  }
+};
 // Get revenue report
 exports.getRevenueReport = async (req, res) => {
   try {
@@ -249,7 +341,42 @@ exports.getTurfDetails = async (req, res) => {
     });
   }
 };
-
+// Update manual payment (for venue QR/cash payments)
+// Update manual payment for venue QR/cash
+exports.updateManualPayment = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { paymentType, amount, paymentMethod } = req.body;
+    
+    const booking = await Booking.findById(bookingId);
+    
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+    
+    if (paymentType === 'full') {
+      booking.paymentStatus = 'full_paid';
+      booking.remainingAmount = 0;
+      booking.venuePaymentAt = new Date();
+      booking.venuePaymentMethod = paymentMethod || 'venue_qr';
+      booking.venuePaymentAmount = amount || booking.totalAmount;
+    } 
+    else if (paymentType === 'remaining' && booking.paymentStatus === 'advance_paid') {
+      booking.paymentStatus = 'full_paid';
+      booking.remainingAmount = 0;
+      booking.venuePaymentAt = new Date();
+      booking.venuePaymentMethod = paymentMethod || 'venue_qr';
+      booking.venuePaymentAmount = amount;
+    }
+    
+    await booking.save();
+    
+    res.json({ success: true, message: 'Payment updated successfully', data: { booking } });
+  } catch (error) {
+    console.error('Manual payment update error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 // Update turf
 exports.updateTurf = async (req, res) => {
   try {
@@ -1061,21 +1188,27 @@ exports.getRevenueBySport = async (req, res) => {
 };
 
 // Get all users (for admin panel)
+// Get all users (for admin panel) - EXCLUDE ADMIN USERS
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.find({})
+    // ✅ Only fetch users with role 'user' (exclude admin and superadmin)
+    const users = await User.find({ role: 'user' })
       .select('name mobileNumber email role createdAt isVerified')
       .sort({ createdAt: -1 })
       .lean();
 
+    // Get booking count for each user
     const usersWithStats = await Promise.all(users.map(async (user) => {
       const bookingCount = await Booking.countDocuments({ user: user._id });
       return {
         ...user,
-        totalBookings: bookingCount
+        totalBookings: bookingCount,
+        bookingsCount: bookingCount
       };
     }));
 
+    console.log(`✅ Fetched ${usersWithStats.length} regular users (admins excluded)`);
+    
     res.status(200).json({
       success: true,
       count: usersWithStats.length,
@@ -1085,7 +1218,8 @@ exports.getAllUsers = async (req, res) => {
     console.error('Get All Users Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch users'
+      message: 'Failed to fetch users',
+      error: error.message
     });
   }
 };

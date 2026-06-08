@@ -35,6 +35,10 @@ const bookingSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  originalAmount: {
+    type: Number,
+    default: 0
+  },
   totalAmount: {
     type: Number,
     required: true
@@ -42,6 +46,10 @@ const bookingSchema = new mongoose.Schema({
   advanceAmount: {
     type: Number,
     required: true
+  },
+  remainingAmount: {
+    type: Number,
+    default: 0
   },
   voucherCode: {
     type: String
@@ -52,12 +60,20 @@ const bookingSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'cancelled', 'completed'],
+    enum: ['pending', 'locked', 'confirmed', 'cancelled', 'completed', 'payment_pending'],
     default: 'pending'
+  },
+  lockedUntil: {
+    type: Date,
+    default: null
+  },
+  paymentPendingUntil: {
+    type: Date,
+    default: null
   },
   paymentStatus: {
     type: String,
-    enum: ['pending', 'advance_paid', 'full_paid', 'refunded'],
+    enum: ['pending', 'advance_paid', 'full_paid', 'refunded', 'refund_failed'],
     default: 'pending'
   },
   paymentDetails: {
@@ -65,8 +81,40 @@ const bookingSchema = new mongoose.Schema({
     razorpayPaymentId: String,
     razorpaySignature: String
   },
-  remainingAmount: {
-    type: Number
+  
+  // REFUND FIELDS
+  refundStatus: {
+    type: String,
+    enum: ['not_applicable', 'pending', 'processing', 'completed', 'failed'],
+    default: 'not_applicable'
+  },
+  refundAmount: {
+    type: Number,
+    default: 0
+  },
+  refundDeduction: {
+    type: Number,
+    default: 0
+  },
+  refundRequestedAt: {
+    type: Date
+  },
+  refundProcessedAt: {
+    type: Date
+  },
+  cancellationReason: {
+    type: String
+  },
+  cancelledBy: {
+    type: String,
+    enum: ['user', 'admin', 'system'],
+    default: 'user'
+  },
+  refundTransactionId: {
+    type: String
+  },
+  refundError: {
+    type: String
   }
 }, {
   timestamps: true

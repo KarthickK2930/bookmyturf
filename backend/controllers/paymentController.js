@@ -60,13 +60,16 @@ exports.verifyPayment = async (req, res) => {
 
     console.log(`✅ Payment verified for booking ${bookingId}`);
 
+    // Send email confirmation
     try {
       const user = await User.findById(booking.user);
       const turf = await Turf.findById(booking.turf);
       
       if (user && user.email && turf) {
         await sendBookingConfirmation(booking, user, turf);
-        console.log('📧 Confirmation email sent');
+        console.log('📧 Confirmation email sent to:', user.email);
+      } else {
+        console.log('⚠️ Email not sent: Missing user email or turf details');
       }
     } catch (emailErr) {
       console.error('Email sending failed:', emailErr.message);

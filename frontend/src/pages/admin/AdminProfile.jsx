@@ -12,6 +12,13 @@ const AdminProfile = () => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
   const [showPassword, setShowPassword] = useState({ current: false, new: false, confirm: false });
+  
+  // Email Change States
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailOtp, setEmailOtp] = useState('');
+  const [emailOtpSent, setEmailOtpSent] = useState(false);
+  const [emailTimer, setEmailTimer] = useState(0);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -23,6 +30,17 @@ const AdminProfile = () => {
     };
     fetchProfile();
   }, []);
+
+  // Timer for email OTP
+  useEffect(() => {
+    let interval;
+    if (emailTimer > 0) {
+      interval = setInterval(() => {
+        setEmailTimer(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [emailTimer]);
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
@@ -53,6 +71,51 @@ const AdminProfile = () => {
       setPasswords({ current: '', new: '', confirm: '' });
     } catch (err) { toast.error(err.response?.data?.message || 'Failed to change password'); }
     finally { setLoading(false); }
+  };
+
+  // Send OTP for email change
+  const handleSendEmailOtp = async () => {
+    if (!newEmail) {
+      toast.error('Please enter new email');
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.post('/admin/auth/change-email-otp', { newEmail });
+      toast.success(`OTP sent to ${newEmail}`);
+      setEmailOtpSent(true);
+      setEmailTimer(60);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Verify OTP and change email
+  const handleChangeEmail = async () => {
+    if (!emailOtp || emailOtp.length !== 6) {
+      toast.error('Please enter valid 6-digit OTP');
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await api.post('/admin/auth/change-email', { 
+        newEmail, 
+        otp: emailOtp 
+      });
+      dispatch(updateProfile(response.data.data.user));
+      setProfile(prev => ({ ...prev, email: newEmail }));
+      toast.success('Email changed successfully!');
+      setShowEmailModal(false);
+      setNewEmail('');
+      setEmailOtp('');
+      setEmailOtpSent(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to change email');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const togglePasswordVisibility = (field) => {
@@ -114,16 +177,25 @@ const AdminProfile = () => {
                 />
               </div>
               
+              {/* ✅ Email with Change Button */}
               <div>
                 <label className="block text-sm font-semibold mb-2 text-gray-700">Email Address</label>
-                <input 
-                  type="email" 
-                  value={profile.email} 
-                  onChange={(e) => setProfile({...profile, email: e.target.value})} 
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-gray-500"
-                  disabled
-                />
-                <p className="text-xs text-gray-400 mt-1">Email cannot be changed</p>
+                <div className="flex gap-2">
+                  <input 
+                    type="email" 
+                    value={profile.email} 
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-gray-500"
+                    disabled
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowEmailModal(true)}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors whitespace-nowrap"
+                  >
+                    Change
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Click Change to update your email address</p>
               </div>
               
               <div>
@@ -235,6 +307,91 @@ const AdminProfile = () => {
           </div>
         </div>
       </div>
+
+      {/* Email Change Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold">Change Email</h2>
+                <button 
+                  onClick={() => {
+                    setShowEmailModal(false);
+                    setNewEmail('');
+                    setEmailOtp('');
+                    setEmailOtpSent(false);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700">
+                    New Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                    placeholder="Enter new email"
+                    disabled={emailOtpSent}
+                  />
+                </div>
+
+                {!emailOtpSent ? (
+                  <button
+                    onClick={handleSendEmailOtp}
+                    disabled={loading || !newEmail}
+                    className="w-full bg-primary-600 text-white py-3 rounded-xl font-semibold hover:bg-primary-700 disabled:opacity-50 transition-colors"
+                  >
+                    {loading ? 'Sending...' : 'Send OTP'}
+                  </button>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2 text-gray-700">
+                        Enter OTP
+                      </label>
+                      <input
+                        type="text"
+                        value={emailOtp}
+                        onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-center text-2xl tracking-widest"
+                        placeholder="000000"
+                        maxLength={6}
+                      />
+                      <p className="text-xs text-gray-400 mt-1">
+                        OTP sent to {newEmail}
+                      </p>
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={handleChangeEmail}
+                        disabled={loading || !emailOtp}
+                        className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors"
+                      >
+                        {loading ? 'Verifying...' : 'Verify & Change'}
+                      </button>
+                      <button
+                        onClick={handleSendEmailOtp}
+                        disabled={emailTimer > 0}
+                        className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 disabled:opacity-50 transition-colors"
+                      >
+                        {emailTimer > 0 ? `Resend (${emailTimer}s)` : 'Resend OTP'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

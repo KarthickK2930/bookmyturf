@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { updateProfile } from '../store/slices/authSlice';
 import api from '../services/api';
@@ -10,6 +10,7 @@ const CompleteProfilePage = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
 
   const handleSubmit = async (e) => {
@@ -19,7 +20,10 @@ const CompleteProfilePage = () => {
       const response = await api.put('/users/profile', { name, email });
       dispatch(updateProfile(response.data.data.user));
       toast.success('Profile updated!');
-      navigate('/');
+      
+      // ✅ FIXED: Go back to the page user came from (turf page)
+      const from = location.state?.from || '/';
+      navigate(from);
     } catch (err) {
       toast.error('Failed to update profile');
     } finally { setLoading(false); }
@@ -40,4 +44,5 @@ const CompleteProfilePage = () => {
     </div>
   );
 };
+
 export default CompleteProfilePage;

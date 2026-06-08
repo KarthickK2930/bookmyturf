@@ -11,24 +11,71 @@ const ManageUsers = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showUserDetails, setShowUserDetails] = useState(false);
 
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      console.log('📡 Fetching users from API...');
+      const response = await api.get('/admin/users');
+      console.log('📥 API Response:', response.data);
+      
+      let usersData = [];
+      if (response.data?.data?.users) {
+        usersData = response.data.data.users;
+      } else if (response.data?.users) {
+        usersData = response.data.users;
+      } else if (Array.isArray(response.data)) {
+        usersData = response.data;
+      } else if (response.data?.data && Array.isArray(response.data.data)) {
+        usersData = response.data.data;
+      } else {
+        console.warn('Unexpected API response structure:', response.data);
+        usersData = [];
+      }
+      
+      console.log(`✅ Fetched ${usersData.length} users`);
+      setUsers(usersData);
+    } catch (err) { 
+      console.error('❌ Failed to fetch users:', err);
+      toast.error(err.response?.data?.message || 'Failed to fetch users'); 
+    } finally { 
+      setLoading(false); 
+    }
+  };
+
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await api.get('/admin/users');
-        setUsers(response.data.data.users);
-      } catch (err) { console.error(err); toast.error('Failed to fetch users'); }
-      finally { setLoading(false); }
-    };
     fetchUsers();
   }, []);
 
   const fetchUserBookings = async (userId) => {
     try {
+      setLoading(true);
+      console.log(`📡 Fetching bookings for user: ${userId}`);
       const response = await api.get(`/admin/users/${userId}/bookings`);
-      setUserBookings(response.data.data.bookings);
+      console.log('📥 Bookings response:', response.data);
+      
+      let bookingsData = [];
+      if (response.data?.data?.bookings) {
+        bookingsData = response.data.data.bookings;
+      } else if (response.data?.bookings) {
+        bookingsData = response.data.bookings;
+      } else if (Array.isArray(response.data)) {
+        bookingsData = response.data;
+      } else if (response.data?.data && Array.isArray(response.data.data)) {
+        bookingsData = response.data.data;
+      } else {
+        bookingsData = [];
+      }
+      
+      console.log(`✅ Fetched ${bookingsData.length} bookings for user`);
+      setUserBookings(bookingsData);
       setSelectedUser(users.find(u => u._id === userId));
       setShowUserDetails(true);
-    } catch (err) { console.error(err); toast.error('Failed to fetch user bookings'); }
+    } catch (err) { 
+      console.error('❌ Failed to fetch user bookings:', err);
+      toast.error(err.response?.data?.message || 'Failed to fetch user bookings'); 
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filteredUsers = users.filter(user => 
@@ -38,7 +85,40 @@ const ManageUsers = () => {
   );
 
   const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (!date) return 'N/A';
+    try {
+      return new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch {
+      return 'Invalid date';
+    }
+  };
+
+  const formatTime = (t) => {
+    if (!t) return '';
+    if (t === '23:59') return '11:59 PM';
+    const [h, m] = t.split(':').map(Number);
+    const ap = h >= 12 ? 'PM' : 'AM';
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${h12}:${String(m).padStart(2, '0')} ${ap}`;
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'confirmed': return 'bg-green-100 text-green-700';
+      case 'pending': return 'bg-yellow-100 text-yellow-700';
+      case 'cancelled': return 'bg-red-100 text-red-700';
+      case 'completed': return 'bg-blue-100 text-blue-700';
+      default: return 'bg-gray-100 text-gray-600';
+    }
+  };
+
+  const getPaymentColor = (paymentStatus) => {
+    switch (paymentStatus) {
+      case 'full_paid': return 'bg-green-100 text-green-700';
+      case 'advance_paid': return 'bg-blue-100 text-blue-700';
+      case 'pending': return 'bg-orange-100 text-orange-700';
+      default: return 'bg-gray-100 text-gray-600';
+    }
   };
 
   if (loading) return <LoadingSpinner />;
@@ -66,21 +146,31 @@ const ManageUsers = () => {
           </div>
         </div>
 
-        {/* Mobile Card View */}
-        <div className="block lg:hidden space-y-3">
+        {/* Refresh Button */}
+        <div className="mb-4 flex justify-end">
+          <button 
+            onClick={fetchUsers}
+            className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-xs flex items-center gap-1 hover:bg-gray-200"
+          >
+            🔄 Refresh Users
+          </button>
+        </div>
+
+        {/* Mobile Card View for Users List */}
+        <div className="block md:hidden space-y-3">
           {filteredUsers.length === 0 ? (
             <div className="bg-white rounded-xl p-12 text-center">
               <div className="text-5xl mb-3">👥</div>
               <p className="font-semibold text-lg">No Users Found</p>
-              <p className="text-sm text-gray-500 mt-1">Try adjusting your search</p>
+              <p className="text-sm text-gray-500 mt-1">Try refreshing or check your database</p>
             </div>
           ) : (
             filteredUsers.map((user) => (
-              <div key={user._id} className="bg-white rounded-xl shadow-md p-4 hover:shadow-lg transition-shadow">
+              <div key={user._id} className="bg-white rounded-xl shadow-md p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                      {user.name?.[0]?.toUpperCase() || 'U'}
+                      {user.name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900">{user.name || 'N/A'}</h3>
@@ -90,17 +180,15 @@ const ManageUsers = () => {
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                     user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
                   }`}>
-                    {user.role === 'admin' ? '👑 Admin' : '👤 User'}
+                    {user.role === 'admin' ? 'Admin' : 'User'}
                   </span>
                 </div>
-                
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <p className="text-xs text-gray-500 mb-2">📧 {user.email || 'No email'}</p>
-                  <p className="text-xs text-gray-500 mb-3">📅 Joined: {formatDate(user.createdAt)}</p>
+                <div className="mt-3 pt-3 border-t">
+                  <p className="text-xs text-gray-500 mb-2 truncate">📧 {user.email || 'No email'}</p>
                   <button 
                     onClick={() => fetchUserBookings(user._id)} 
-                    className="w-full bg-primary-50 text-primary-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-primary-100 transition-colors">
-                    📅 View Bookings ({user.bookingsCount || 0})
+                    className="w-full bg-primary-50 text-primary-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-primary-100">
+                    View Bookings
                   </button>
                 </div>
               </div>
@@ -108,116 +196,197 @@ const ManageUsers = () => {
           )}
         </div>
 
-        {/* Desktop Table View */}
-        <div className="hidden lg:block bg-white rounded-xl shadow-md overflow-x-auto">
+        {/* Desktop Table View for Users List */}
+        <div className="hidden md:block bg-white rounded-xl shadow-md overflow-x-auto">
           <table className="w-full min-w-[800px]">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">User</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Mobile</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Email</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Joined</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">User</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Mobile</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Email</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Joined</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredUsers.map((user) => (
-                <tr key={user._id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-primary-700 font-semibold text-sm">
-                        {user.name?.[0]?.toUpperCase() || 'U'}
-                      </div>
-                      <span className="font-medium text-sm">{user.name || 'N/A'}</span>
-                    </div>
+              {filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="px-4 py-12 text-center text-gray-500">
+                    <div className="text-5xl mb-3">👥</div>
+                    <p className="font-semibold">No Users Found</p>
+                    <p className="text-xs mt-1">Try refreshing or check your database connection</p>
                   </td>
-                  <td className="px-5 py-4 text-sm">{user.mobileNumber || '-'} </td>
-                  <td className="px-5 py-4 text-sm text-gray-600">{user.email || '-'} </td>
-                  <td className="px-5 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {user.role === 'admin' ? 'Admin' : 'User'}
-                    </span>
-                   </td>
-                  <td className="px-5 py-4 text-sm text-gray-500">{formatDate(user.createdAt)}</td>
-                  <td className="px-5 py-4">
-                    <button 
-                      onClick={() => fetchUserBookings(user._id)} 
-                      className="text-primary-600 hover:text-primary-800 text-sm font-medium flex items-center gap-1">
-                      <span>📅</span> View Bookings
-                    </button>
-                   </td>
-                 </tr>
-              ))}
+                </tr>
+              ) : (
+                filteredUsers.map((user) => (
+                  <tr key={user._id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-primary-700 font-semibold text-sm">
+                          {user.name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
+                        </div>
+                        <span className="font-medium text-sm">{user.name || 'N/A'}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm">{user.mobileNumber || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{user.email || '-'}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {user.role === 'admin' ? 'Admin' : 'User'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{formatDate(user.createdAt)}</td>
+                    <td className="px-4 py-3">
+                      <button 
+                        onClick={() => fetchUserBookings(user._id)} 
+                        className="text-primary-600 hover:text-primary-800 text-sm font-medium">
+                        View Bookings
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
-           </table>
+          </table>
         </div>
 
-        {/* User Details Modal/Sidebar */}
+        {/* User Bookings Modal - Horizontal Table */}
         {showUserDetails && selectedUser && (
-          <>
-            <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setShowUserDetails(false)} />
-            <div className={`fixed top-0 right-0 h-full w-full sm:w-96 bg-white shadow-2xl z-50 transform transition-transform duration-300 overflow-y-auto ${
-              showUserDetails ? 'translate-x-0' : 'translate-x-full'
-            } lg:relative lg:translate-x-0 lg:mt-6 lg:rounded-xl lg:shadow-md`}>
-              <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
-                <h2 className="text-xl font-bold">User Details</h2>
-                <button onClick={() => setShowUserDetails(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+              {/* Modal Header */}
+              <div className="flex justify-between items-center p-5 border-b bg-gradient-to-r from-primary-50 to-blue-50">
+                <div>
+                  <h2 className="text-2xl font-bold">{selectedUser.name || 'User'}</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    📧 {selectedUser.email} • 📱 {selectedUser.mobileNumber || 'No mobile'}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Member since: {formatDate(selectedUser.createdAt)} • Role: {selectedUser.role === 'admin' ? 'Administrator' : 'Regular User'}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setShowUserDetails(false)} 
+                  className="text-gray-400 hover:text-gray-600 text-2xl p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
                   ✕
                 </button>
               </div>
               
-              <div className="p-5">
-                {/* User Profile */}
-                <div className="text-center mb-6">
-                  <div className="w-20 h-20 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-2xl mx-auto mb-3">
-                    {selectedUser.name?.[0]?.toUpperCase() || 'U'}
+              {/* Bookings Table - Horizontal Scroll */}
+              <div className="flex-1 overflow-auto p-5">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-semibold text-gray-900 text-lg flex items-center gap-2">
+                    <span>📅</span> Booking History ({userBookings.length})
+                  </h3>
+                  <span className="text-xs text-gray-400">Total spent: ₹{userBookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0)}</span>
+                </div>
+                
+                {userBookings.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-xl">
+                    <div className="text-5xl mb-3">📭</div>
+                    <p className="text-sm font-medium">No bookings yet</p>
+                    <p className="text-xs mt-1">This user hasn't made any bookings</p>
                   </div>
-                  <h3 className="font-bold text-lg">{selectedUser.name || 'N/A'}</h3>
-                  <p className="text-sm text-gray-500">{selectedUser.email || 'No email'}</p>
-                  <p className="text-sm text-gray-500 mt-1">📱 {selectedUser.mobileNumber || 'No mobile'}</p>
-                  <p className="text-xs text-gray-400 mt-2">Joined: {formatDate(selectedUser.createdAt)}</p>
-                </div>
-
-                {/* Bookings Section */}
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <span>📅</span> Bookings ({userBookings.length})
-                  </h4>
-                  
-                  {userBookings.length === 0 ? (
-                    <div className="text-center py-8 text-gray-400">
-                      <div className="text-4xl mb-2">📭</div>
-                      <p className="text-sm">No bookings yet</p>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-gray-200">
+                    <table className="w-full min-w-[1000px]">
+                      <thead className="bg-gray-50 border-b">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Turf</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Time</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Sport</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Duration</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Amount</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Payment</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Booking ID</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {userBookings.map(booking => (
+                          <tr key={booking._id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-3">
+                              <div className="font-medium text-sm">{booking.turf?.name || '-'}</div>
+                              <div className="text-xs text-gray-500">{booking.turf?.address?.city || '-'}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm">{formatDate(booking.date)}</td>
+                            <td className="px-4 py-3 text-sm">{formatTime(booking.startTime)} - {formatTime(booking.endTime)}</td>
+                            <td className="px-4 py-3">
+                              <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">{booking.sport || '-'}</span>
+                            </td>
+                            <td className="px-4 py-3 text-sm">{booking.totalHours || 1}h</td>
+                            <td className="px-4 py-3">
+                              <div className="font-semibold text-primary-600">₹{booking.totalAmount || 0}</div>
+                              {booking.discount > 0 && (
+                                <div className="text-xs text-green-600">Saved ₹{booking.discount}</div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`text-xs px-2 py-1 rounded-full font-medium ${getPaymentColor(booking.paymentStatus)}`}>
+                                {booking.paymentStatus === 'full_paid' ? '✅ Full Paid' :
+                                 booking.paymentStatus === 'advance_paid' ? '💳 Advance' : '⏳ Pending'}
+                              </span>
+                              {booking.paymentStatus === 'advance_paid' && booking.remainingAmount > 0 && (
+                                <div className="text-xs text-orange-500 mt-1">Due: ₹{booking.remainingAmount}</div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(booking.status)}`}>
+                                {booking.status === 'confirmed' ? '✅ Confirmed' :
+                                 booking.status === 'completed' ? '🏁 Completed' :
+                                 booking.status === 'cancelled' ? '❌ Cancelled' :
+                                 booking.status === 'pending' ? '⏳ Pending' : booking.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">{booking._id?.slice(-8)}</span>
+                            </td>
+                           </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                
+                {/* Summary Cards */}
+                {userBookings.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+                    <div className="bg-green-50 rounded-xl p-3 text-center">
+                      <p className="text-xs text-gray-500">Total Bookings</p>
+                      <p className="text-2xl font-bold text-green-600">{userBookings.length}</p>
                     </div>
-                  ) : (
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
-                      {userBookings.map(booking => (
-                        <div key={booking._id} className="border border-gray-100 rounded-xl p-3 hover:shadow-md transition-shadow">
-                          <div className="flex justify-between items-start mb-2">
-                            <p className="font-semibold text-sm">{booking.turf?.name}</p>
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${
-                              booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                              booking.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                              booking.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                              'bg-gray-100 text-gray-600'
-                            }`}>
-                              {booking.status}
-                            </span>
-                          </div>
-                          <p className="text-xs text-gray-500">{formatDate(booking.date)}</p>
-                          <p className="text-xs text-gray-500">{booking.startTime} - {booking.endTime} ({booking.totalHours}h)</p>
-                          <p className="text-xs font-medium text-primary-600 mt-1">₹{booking.totalAmount}</p>
-                        </div>
-                      ))}
+                    <div className="bg-blue-50 rounded-xl p-3 text-center">
+                      <p className="text-xs text-gray-500">Total Spent</p>
+                      <p className="text-2xl font-bold text-blue-600">₹{userBookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0)}</p>
                     </div>
-                  )}
-                </div>
+                    <div className="bg-purple-50 rounded-xl p-3 text-center">
+                      <p className="text-xs text-gray-500">Confirmed</p>
+                      <p className="text-2xl font-bold text-purple-600">{userBookings.filter(b => b.status === 'confirmed').length}</p>
+                    </div>
+                    <div className="bg-orange-50 rounded-xl p-3 text-center">
+                      <p className="text-xs text-gray-500">Completed</p>
+                      <p className="text-2xl font-bold text-orange-600">{userBookings.filter(b => b.status === 'completed').length}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Modal Footer */}
+              <div className="border-t px-6 py-4 bg-gray-50 rounded-b-2xl flex justify-end">
+                <button 
+                  onClick={() => setShowUserDetails(false)}
+                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  Close
+                </button>
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>

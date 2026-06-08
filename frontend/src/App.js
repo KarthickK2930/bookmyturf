@@ -5,6 +5,7 @@ import { store } from './store/store';
 import { Toaster } from 'react-hot-toast';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
+import GlobalTimerPopup from './components/common/GlobalTimerPopup';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -18,6 +19,9 @@ import UserProfile from './pages/UserProfile';
 import EditProfile from './pages/EditProfile';
 import BookingConfirmPage from './pages/BookingConfirmPage';
 import ReviewPage from './pages/ReviewPage';
+// In App.js
+
+// Add to admin routes
 
 // Admin Pages
 import AdminLoginPage from './pages/admin/AdminLoginPage';
@@ -30,6 +34,10 @@ import ManageUsers from './pages/admin/ManageUsers';
 import ManageOffers from './pages/admin/ManageOffers';
 import ManageReports from './pages/admin/ManageReports';
 import AdminProfile from './pages/admin/AdminProfile';
+import ManageRefunds from './pages/admin/ManageRefunds';
+import ForgotPassword from './pages/admin/ForgotPassword';
+
+// Add this route
 
 // Protected Route Component
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -77,7 +85,8 @@ const AppContent = () => {
           <Route path="/booking/confirm" element={<BookingConfirmPage />} />
           <Route path="/review/:bookingId" element={<ProtectedRoute><ReviewPage /></ProtectedRoute>} />
           <Route path="/review/turf/:turfId" element={<ProtectedRoute><ReviewPage /></ProtectedRoute>} />
-
+        <Route path="/admin/forgot-password" element={<ForgotPassword />} />
+            
           {/* Admin Login */}
           <Route path="/admin/login" element={<AdminLoginPage />} />
 
@@ -93,6 +102,8 @@ const AppContent = () => {
             <Route path="offers" element={<ManageOffers />} />
             <Route path="reports" element={<ManageReports />} />
             <Route path="profile" element={<AdminProfile />} />
+            <Route path="refunds" element={<ManageRefunds />} />
+            
           </Route>
 
           {/* 404 */}
@@ -108,6 +119,9 @@ const AppContent = () => {
         </Routes>
       </main>
       {!isAdminRoute && <Footer />}
+      
+      {/* ✅ GlobalTimerPopup - Place it OUTSIDE main but inside the div, after Footer */}
+      <GlobalTimerPopup />
     </div>
   );
 };

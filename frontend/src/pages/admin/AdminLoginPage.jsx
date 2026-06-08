@@ -132,7 +132,7 @@ const AdminLoginPage = () => {
                   value={email} 
                   onChange={(e) => setEmail(e.target.value)} 
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none"
-                  placeholder="admin@bookmyturf.com" 
+                  placeholder="karthick302003@gmail.com" 
                   required 
                 />
               </div>
@@ -174,7 +174,7 @@ const AdminLoginPage = () => {
                 </label>
                 <button 
                   type="button"
-                  onClick={() => toast('Contact admin to reset password', { icon: '📧' })}
+                  onClick={() => navigate('/admin/forgot-password')}
                   className="text-sm text-primary-600 hover:text-primary-700 font-medium"
                 >
                   Forgot password?
@@ -222,12 +222,12 @@ const AdminLoginPage = () => {
             <div className="lg:hidden mt-6 bg-gray-50 rounded-xl p-4">
               <p className="text-xs font-semibold text-gray-500 mb-2">Demo Credentials</p>
               <div className="space-y-1 text-sm">
-                <p className="text-gray-600">Email: <code className="bg-gray-100 px-1 rounded">admin@bookmyturf.com</code></p>
+                <p className="text-gray-600">Email: <code className="bg-gray-100 px-1 rounded">karthick302003@gmail.com</code></p>
                 <p className="text-gray-600">Password: <code className="bg-gray-100 px-1 rounded">admin123</code></p>
               </div>
               <button 
                 onClick={() => {
-                  setEmail('admin@bookmyturf.com');
+                  setEmail('karthick302003@gmail.com');
                   setPassword('admin123');
                 }}
                 className="w-full mt-3 bg-primary-50 text-primary-600 text-xs py-2 rounded-lg hover:bg-primary-100 transition-colors"
