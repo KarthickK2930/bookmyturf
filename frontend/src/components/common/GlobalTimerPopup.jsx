@@ -27,28 +27,41 @@ const GlobalTimerPopup = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Listen for the booking success event to instantly dismiss the timer popup
+  useEffect(() => {
+    const forceClearTimerPopup = () => {
+      setShowPopup(false);
+      setTimer(0);
+      setPendingBookingData(null);
+      setSavedTimerEnd(null);
+    };
 
-  // Add this at the top of GlobalTimerPopup component, after state declarations
-useEffect(() => {
-  // Check if user is on profile page (payment successful)
-  if (location.pathname === '/profile') {
-    setShowPopup(false);
-    localStorage.removeItem(GLOBAL_SESSION_KEY);
-    localStorage.removeItem(GLOBAL_TIMER_KEY);
-    localStorage.removeItem(GLOBAL_BOOKING_DATA_KEY);
-    return;
-  }
-}, [location.pathname]);
+    window.addEventListener('booking-success', forceClearTimerPopup);
+    window.addEventListener('storage', forceClearTimerPopup);
+
+    return () => {
+      window.removeEventListener('booking-success', forceClearTimerPopup);
+      window.removeEventListener('storage', forceClearTimerPopup);
+    };
+  }, []);
+
+  // Ensure standard route changes also perform a clean-up safely
+  useEffect(() => {
+    if (location.pathname === '/profile') {
+      setShowPopup(false);
+      localStorage.removeItem(GLOBAL_SESSION_KEY);
+      localStorage.removeItem(GLOBAL_TIMER_KEY);
+      localStorage.removeItem(GLOBAL_BOOKING_DATA_KEY);
+    }
+  }, [location.pathname]);
+
   // Check for pending booking
   const checkPendingBooking = () => {
-    // First check localStorage
     let savedSession = localStorage.getItem(GLOBAL_SESSION_KEY);
     let savedTimerEnd = localStorage.getItem(GLOBAL_TIMER_KEY);
     let savedBookingData = localStorage.getItem(GLOBAL_BOOKING_DATA_KEY);
     
-    // ✅ If no data in localStorage but we are on confirm page, check location.state
     if (!savedBookingData && location.pathname === '/booking/confirm' && location.state) {
-      console.log('📦 Found booking data in location.state');
       const bookingData = location.state;
       const endTime = Date.now() + 300 * 1000;
       savedTimerEnd = endTime.toString();
@@ -58,7 +71,6 @@ useEffect(() => {
         timerEnd: endTime
       });
       
-      // Save to localStorage for persistence
       localStorage.setItem(GLOBAL_TIMER_KEY, savedTimerEnd);
       localStorage.setItem(GLOBAL_SESSION_KEY, savedSession);
       localStorage.setItem(GLOBAL_BOOKING_DATA_KEY, savedBookingData);
@@ -77,11 +89,9 @@ useEffect(() => {
     return false;
   };
 
-  // Check immediately and when location changes
   useEffect(() => {
     checkPendingBooking();
     
-    // Also check when location changes (page navigation)
     const timer = setTimeout(() => {
       checkPendingBooking();
     }, 100);

@@ -165,15 +165,18 @@ const BookingConfirmPage = () => {
   const [timer, setTimer] = useState(getInitialTimer);
 
   useEffect(() => {
+    if (showSuccess) return;
     if (bookingData && timer > 0 && timer < 300) {
       const endTime = Date.now() + timer * 1000;
       localStorage.setItem(GLOBAL_TIMER_KEY, endTime.toString());
       localStorage.setItem(GLOBAL_SESSION_KEY, 'active');
       localStorage.setItem(GLOBAL_BOOKING_DATA_KEY, JSON.stringify({ ...bookingData, timerEnd: endTime }));
     }
-  }, [bookingData, timer]);
+  }, [bookingData, timer, showSuccess]);
 
   useEffect(() => {
+    if (showSuccess) return;
+
     const keys = Object.keys(localStorage);
     keys.forEach(key => {
       if (key.startsWith('booking_timer_') && key !== TIMER_KEY) localStorage.removeItem(key);
@@ -202,9 +205,10 @@ const BookingConfirmPage = () => {
       }
     }, 1000);
     return () => clearInterval(t);
-  }, [TIMER_KEY, bookingData]);
+  }, [TIMER_KEY, bookingData, showSuccess]);
 
   useEffect(() => {
+    if (showSuccess) return;
     if (timer === 0 && bookingData) {
       toast.error('⏰ Time expired! Slots released.');
       localStorage.removeItem(GLOBAL_TIMER_KEY);
@@ -213,7 +217,7 @@ const BookingConfirmPage = () => {
       api.post('/bookings/unlock', { turfId: bookingData?.turfId || bookingData?.turf?._id, date: selectedDate }).catch(() => {});
       setTimeout(() => navigate('/', { replace: true }), 2000);
     }
-  }, [timer]);
+  }, [timer, showSuccess]);
 
   useEffect(() => {
     const fetchOffers = async () => {
@@ -265,16 +269,29 @@ const BookingConfirmPage = () => {
       description: `${turf?.name} - ${selectedSport}`,
       order_id: razorpayOrder.id,
       handler: async function (response) {
+        // Step 1: Instantly halt local timer states
+        setTimer(0);
         setSuccessBookingId(bookingId);
         setSuccessBookingNumber(bookingNumber);
         setShowSuccess(true);
         
-        const allTimerKeys = Object.keys(localStorage).filter(key => 
+        // Step 2: Delete precise session keys in local storage
+        localStorage.removeItem(TIMER_KEY);
+        localStorage.removeItem(GLOBAL_TIMER_KEY);
+        localStorage.removeItem(GLOBAL_SESSION_KEY);
+        localStorage.removeItem(GLOBAL_BOOKING_DATA_KEY);
+        localStorage.removeItem('pendingSlots');
+
+        // Step 3: Delete wildcard timer remnants
+        const wildcardKeys = Object.keys(localStorage).filter(key => 
           key.startsWith('booking_timer_') || 
-          key.startsWith('global_booking_') ||
-          key === 'pendingSlots'
+          key.startsWith('global_booking_')
         );
-        allTimerKeys.forEach(key => localStorage.removeItem(key));
+        wildcardKeys.forEach(key => localStorage.removeItem(key));
+        
+        // Step 4: Dispatch events to close any global layout banners/popups
+        window.dispatchEvent(new Event('booking-success'));
+        window.dispatchEvent(new Event('storage'));
         
         toast.success('Payment successful! Booking confirmed.');
         
