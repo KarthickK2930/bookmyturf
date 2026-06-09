@@ -13,25 +13,93 @@ const formatTime = (t) => {
   return `${h12}:${String(m).padStart(2, '0')} ${ap}`;
 };
 
-const SuccessScreen = ({ bookingId, onDone }) => {
+const SuccessScreen = ({ bookingId, bookingNumber, onDone }) => {
   const [showConfetti, setShowConfetti] = useState(true);
-  useEffect(() => { const t = setTimeout(() => setShowConfetti(false), 3000); return () => clearTimeout(t); }, []);
+  const [showContent, setShowContent] = useState(false);
+  
+  useEffect(() => {
+    setShowContent(true);
+    const t = setTimeout(() => setShowConfetti(false), 2000);
+    return () => clearTimeout(t);
+  }, []);
+
+  const confettiPieces = Array.from({ length: 30 }, (_, i) => ({
+    id: i, left: `${Math.random() * 100}%`,
+    color: ['#16a34a', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6'][i % 5],
+    delay: `${Math.random() * 0.5}s`, size: `${8 + Math.random() * 10}px`,
+  }));
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#f8fafc] flex items-center justify-center p-4 overflow-hidden">
-      <div className="text-center animate-bounce-in max-w-sm w-full">
-        <div className="w-24 h-24 rounded-full bg-primary-100 border-4 border-primary-400 flex items-center justify-center mx-auto mb-6">
-          <svg viewBox="0 0 50 50" className="w-14 h-14">
-            <circle cx="25" cy="25" r="22" fill="none" stroke="#16a34a" strokeWidth="3" />
-            <path d="M14 25 L21 32 L36 18" fill="none" stroke="#16a34a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+    <div className="fixed inset-0 z-50 bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4 overflow-hidden">
+      {showConfetti && confettiPieces.map(p => (
+        <div 
+          key={p.id} 
+          className="confetti-piece absolute animate-confetti" 
+          style={{ 
+            left: p.left, 
+            top: '-20px', 
+            backgroundColor: p.color, 
+            animationDelay: p.delay, 
+            width: p.size, 
+            height: p.size,
+            animationDuration: '1.5s'
+          }} 
+        />
+      ))}
+      
+      <div className={`text-center max-w-sm w-full transform transition-all duration-500 ${showContent ? 'scale-100 opacity-100' : 'scale-90 opacity-0'}`}>
+        <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-green-500 shadow-lg flex items-center justify-center mx-auto mb-4 md:mb-6 animate-bounce-in">
+          <svg viewBox="0 0 50 50" className="w-10 h-10 md:w-14 md:h-14">
+            <circle cx="25" cy="25" r="22" fill="none" stroke="white" strokeWidth="3" />
+            <path d="M14 25 L21 32 L36 18" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="checkmark-path" />
           </svg>
         </div>
-        <div className="text-5xl mb-3 animate-bounce-ball">⚽</div>
-        <h2 className="font-display text-4xl text-gray-900 mb-2">BOOKING CONFIRMED!</h2>
-        <p className="text-gray-500 mb-2">Your turf is booked. See you on the field!</p>
-        {bookingId && <p className="text-xs text-gray-400 mb-6 font-mono bg-gray-100 px-3 py-1 rounded-lg inline-block">ID: {bookingId}</p>}
-        <div className="flex gap-3 justify-center">
-          <button onClick={onDone} className="bg-primary-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-primary-700">🏆 View Bookings</button>
+        
+        <h2 className="font-display text-2xl md:text-4xl font-bold text-gray-900 mb-2">
+          🎉 BOOKING CONFIRMED!
+        </h2>
+        
+        <p className="text-gray-600 text-sm md:text-base mb-3">
+          Your turf is booked. See you on the field!
+        </p>
+        
+        {bookingNumber && (
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl px-4 py-2 inline-block mx-auto mb-5 md:mb-6">
+            <p className="text-[10px] md:text-xs text-gray-400">Booking Number</p>
+            <p className="text-sm md:text-base font-mono font-bold text-primary-600">
+              {bookingNumber}
+            </p>
+          </div>
+        )}
+        
+        {!bookingNumber && bookingId && (
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl px-4 py-2 inline-block mx-auto mb-5 md:mb-6">
+            <p className="text-[10px] md:text-xs text-gray-400">Booking ID</p>
+            <p className="text-xs md:text-sm font-mono font-bold text-primary-600">{bookingId}</p>
+          </div>
+        )}
+        
+        <button 
+          onClick={onDone} 
+          className="w-full bg-primary-600 text-white px-4 py-3 md:px-6 md:py-3 rounded-xl font-bold text-sm md:text-base hover:bg-primary-700 transition-all transform active:scale-95 shadow-lg"
+        >
+          🏆 View My Bookings
+        </button>
+        
+        <div className="mt-4 flex justify-center gap-3">
+          <button 
+            onClick={() => window.location.href = '/turfs'} 
+            className="text-xs md:text-sm text-primary-600 hover:text-primary-700 font-medium"
+          >
+            🔍 Find More Turfs
+          </button>
+          <span className="text-gray-300">|</span>
+          <button 
+            onClick={() => window.location.href = '/'} 
+            className="text-xs md:text-sm text-primary-600 hover:text-primary-700 font-medium"
+          >
+            🏠 Go Home
+          </button>
         </div>
       </div>
     </div>
@@ -53,6 +121,7 @@ const BookingConfirmPage = () => {
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successBookingId, setSuccessBookingId] = useState(null);
+  const [successBookingNumber, setSuccessBookingNumber] = useState(null);
   const [showAvailableOffers, setShowAvailableOffers] = useState(false);
   const [availableOffers, setAvailableOffers] = useState([]);
 
@@ -187,7 +256,7 @@ const BookingConfirmPage = () => {
     } catch (err) { setVoucherError(err.response?.data?.message || 'Invalid voucher code'); }
   };
 
-  const openRazorpay = (razorpayOrder, bookingId) => {
+  const openRazorpay = (razorpayOrder, bookingId, bookingNumber) => {
     const options = {
       key: 'rzp_test_SsoO6xxgowIgb4',
       amount: razorpayOrder.amount,
@@ -196,42 +265,34 @@ const BookingConfirmPage = () => {
       description: `${turf?.name} - ${selectedSport}`,
       order_id: razorpayOrder.id,
       handler: async function (response) {
-        try {
-          const verifyRes = await api.post('/payments/verify', {
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-            bookingId
-          });
-          
-          if (verifyRes.data.success) {
-            const allTimerKeys = Object.keys(localStorage).filter(key => 
-              key.startsWith('booking_timer_') || key.startsWith('global_booking_') || key === 'pendingSlots'
-            );
-            allTimerKeys.forEach(key => localStorage.removeItem(key));
-            setSuccessBookingId(bookingId);
-            setShowSuccess(true);
-            toast.success('Payment successful! Booking confirmed.');
-          } else {
-            toast.error('Payment verification failed');
-          }
-        } catch (err) { 
-          console.error('Payment error:', err);
-          toast.error('Payment verification failed');
-          setTimeout(() => navigate('/profile', { replace: true }), 3000);
-        }
+        setSuccessBookingId(bookingId);
+        setSuccessBookingNumber(bookingNumber);
+        setShowSuccess(true);
+        
+        const allTimerKeys = Object.keys(localStorage).filter(key => 
+          key.startsWith('booking_timer_') || 
+          key.startsWith('global_booking_') ||
+          key === 'pendingSlots'
+        );
+        allTimerKeys.forEach(key => localStorage.removeItem(key));
+        
+        toast.success('Payment successful! Booking confirmed.');
+        
+        api.post('/payments/verify', {
+          razorpay_order_id: response.razorpay_order_id,
+          razorpay_payment_id: response.razorpay_payment_id,
+          razorpay_signature: response.razorpay_signature,
+          bookingId
+        }).catch(err => console.error('Verification error:', err));
       },
-      prefill: { name: user?.name || 'Customer', email: user?.email || '', contact: user?.mobileNumber || '' },
-      theme: { color: '#16a34a' },
       modal: {
-        ondismiss: async function () {
+        ondismiss: function() {
           toast('Payment cancelled');
-          setTimeout(() => navigate('/turfs'), 3000);
+          setTimeout(() => navigate('/turfs'), 2000);
         }
       }
     };
     const rzp = new window.Razorpay(options);
-    rzp.on('payment.failed', function () { toast.error('Payment failed. Please try again.'); });
     rzp.open();
   };
 
@@ -243,24 +304,38 @@ const BookingConfirmPage = () => {
       const response = await api.post('/bookings', {
         turfId, sport: selectedSport, date: selectedDate,
         startTime: selectedStartTime, endTime: selectedEndTime,
-        totalHours, totalAmount: discountedTotal,
+        totalHours: totalHours, totalAmount: discountedTotal,
         voucherCode: appliedVoucher?.code || undefined, paymentType
       });
       if (!response.data?.success) { toast.error(response.data?.message || 'Failed'); return; }
-      const { booking, razorpayOrder, amountToPay } = response.data.data;
+      const { booking, razorpayOrder } = response.data.data;
+      
+      const bookingNumber = booking.bookingNumber || booking._id?.slice(-8);
+      
       if (typeof window.Razorpay === 'undefined') {
         const script = document.createElement('script');
         script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-        script.onload = () => openRazorpay(razorpayOrder, booking._id);
+        script.onload = () => openRazorpay(razorpayOrder, booking._id, bookingNumber);
         document.body.appendChild(script);
         return;
       }
-      openRazorpay(razorpayOrder, booking._id);
-    } catch (err) { toast.error(err.response?.data?.message || 'Failed to create booking'); }
-    finally { setLoading(false); }
+      openRazorpay(razorpayOrder, booking._id, bookingNumber);
+    } catch (err) { 
+      toast.error(err.response?.data?.message || 'Failed to create booking'); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
-  if (showSuccess) return <SuccessScreen bookingId={successBookingId} onDone={() => navigate('/profile', { replace: true })} />;
+  if (showSuccess) {
+    return (
+      <SuccessScreen 
+        bookingId={successBookingId} 
+        bookingNumber={successBookingNumber}
+        onDone={() => navigate('/profile', { replace: true })} 
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f8fafc] py-6 pb-10">
@@ -384,7 +459,7 @@ const BookingConfirmPage = () => {
             ))}
           </div>
         </div>
-
+          
         <div className="bg-white rounded-card shadow-card p-5 mb-5 animate-slide-up stagger-3">
           <h3 className="font-display text-xl text-gray-900 mb-3">💰 PRICE SUMMARY</h3>
           <div className="space-y-2 text-sm">

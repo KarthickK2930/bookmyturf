@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema({
+  // ✅ ADD THIS - Booking Number for easy reference
+  bookingNumber: {
+    type: String,
+    unique: true,
+    index: true,
+    sparse: true
+  },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -119,5 +126,10 @@ const bookingSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// ✅ Add index for faster queries
+bookingSchema.index({ bookingNumber: 1 });
+bookingSchema.index({ user: 1, createdAt: -1 });
+bookingSchema.index({ turf: 1, date: 1, startTime: 1 });
 
 module.exports = mongoose.model('Booking', bookingSchema);

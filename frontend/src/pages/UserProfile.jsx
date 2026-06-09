@@ -346,31 +346,36 @@ const getPricePerHour = (booking) => {
                 <div key={booking._id} className="bg-white rounded-xl shadow-sm p-3 md:p-4 active:scale-[0.99] transition-transform">
                   
                   {/* Top Row: Turf Name + Status */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <img 
-                        src={booking.turf?.images?.[0]?.url || 'https://images.unsplash.com/photo-1508098682722-e99c643e7f0b?w=100&h=100&fit=crop'} 
-                        alt={booking.turf?.name} 
-                        className="w-10 h-10 md:w-12 md:h-12 rounded-lg object-cover" 
-                      />
-                      <div>
-                        <h3 className="font-semibold text-gray-900 text-xs md:text-sm">{booking.turf?.name || 'Turf'}</h3>
-                        <p className="text-[10px] md:text-xs text-gray-500">📍 {booking.turf?.address?.city || 'Location'}</p>
-                      </div>
-                    </div>
-                    <span className={`px-2 py-0.5 md:px-2.5 md:py-1 rounded-full text-[10px] md:text-xs font-bold whitespace-nowrap ${
-                      booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                      booking.status === 'completed' ? 'bg-blue-100 text-blue-700' :
-                      booking.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                      booking.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {booking.status === 'pending' ? '⏳ Pending' : 
-                       booking.status === 'confirmed' ? '✅ Confirmed' :
-                       booking.status === 'completed' ? '🏁 Completed' :
-                       booking.status === 'cancelled' ? '❌ Cancelled' : booking.status}
-                    </span>
-                  </div>
+                  {/* Top Row: Turf Name + Status */}
+<div className="flex items-start justify-between mb-3">
+  <div className="flex items-center gap-3">
+    <img 
+      src={booking.turf?.images?.[0]?.url || 'https://images.unsplash.com/photo-1508098682722-e99c643e7f0b?w=100&h=100&fit=crop'} 
+      alt={booking.turf?.name} 
+      className="w-10 h-10 md:w-12 md:h-12 rounded-lg object-cover" 
+    />
+    <div>
+      <h3 className="font-semibold text-gray-900 text-xs md:text-sm">{booking.turf?.name || 'Turf'}</h3>
+      {/* ✅ Show easy booking number */}
+      <p className="text-[10px] md:text-xs text-primary-600 font-mono font-bold">
+        BOOKING NO:{booking.bookingNumber || booking._id?.slice(-8)}
+      </p>
+      <p className="text-[10px] md:text-xs text-gray-500">📍 {booking.turf?.address?.city || 'Location'}</p>
+    </div>
+  </div>
+  <span className={`px-2 py-0.5 md:px-2.5 md:py-1 rounded-full text-[10px] md:text-xs font-bold whitespace-nowrap ${
+    booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+    booking.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+    booking.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+    booking.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+    'bg-gray-100 text-gray-700'
+  }`}>
+    {booking.status === 'pending' ? '⏳ Pending' : 
+     booking.status === 'confirmed' ? '✅ Confirmed' :
+     booking.status === 'completed' ? '🏁 Completed' :
+     booking.status === 'cancelled' ? '❌ Cancelled' : booking.status}
+  </span>
+</div>
 
                   {/* Details Grid - Mobile Optimized */}
                   <div className="grid grid-cols-2 gap-2 text-xs mb-3">

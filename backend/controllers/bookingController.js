@@ -23,6 +23,33 @@ try {
   console.error('❌ Razorpay initialization failed:', err.message);
 }
 
+// Helper function to generate booking number
+const generateBookingNumber = async (turfName) => {
+  // Get turf prefix (first 4 letters, uppercase)
+  const prefix = turfName?.substring(0, 4).toUpperCase() || 'BOOK';
+  
+  // Get current date: DDMMYY
+  const now = new Date();
+  const day = String(now.getDate()).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const year = String(now.getFullYear()).slice(-2);
+  const dateStr = `${day}${month}${year}`;
+  
+  // Count bookings today to get sequential number
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date();
+  endOfDay.setHours(23, 59, 59, 999);
+  
+  const todayBookings = await Booking.countDocuments({
+    createdAt: { $gte: startOfDay, $lte: endOfDay }
+  });
+  
+  const sequential = String(todayBookings + 1).padStart(3, '0');
+  
+  return `${prefix}${dateStr}${sequential}`;
+};
+
 // Create booking with payment_pending status
 exports.createBooking = async (req, res) => {
   try {
@@ -207,6 +234,8 @@ exports.createBooking = async (req, res) => {
       status: 'payment_pending',
       paymentPendingUntil: new Date(Date.now() + 5 * 60 * 1000)
     });
+
+    booking.bookingNumber = await generateBookingNumber(turf.name);
 
     await booking.save();
     console.log('✅ Booking saved with payment_pending status:', booking._id);
@@ -503,3 +532,4 @@ exports.cleanExpiredPaymentPending = async () => {
     console.error('Clean expired payment pending error:', error);
   }
 };
+
