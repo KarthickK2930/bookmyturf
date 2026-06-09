@@ -224,8 +224,8 @@ const sendBookingConfirmation = async (booking, user, turf) => {
             
             <!-- CTAs -->
             <div style="text-align: center; margin: 32px 0 16px 0;">
-              <a href="${process.env.FRONTEND_URL || 'https://bookmyturf.com'}/profile" style="display: inline-block; background-color: #16a34a; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; margin: 4px;">My Bookings</a>
-              <a href="${process.env.FRONTEND_URL || 'https://bookmyturf.com'}/turf/${turf._id}" style="display: inline-block; background-color: #f1f5f9; color: #334155; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; margin: 4px; border: 1px solid #e2e8f0;">Venue Details</a>
+              <a href="${process.env.FRONTEND_URL || 'bookmyturf-zeta.vercel.app'}/profile" style="display: inline-block; background-color: #16a34a; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; margin: 4px;">My Bookings</a>
+              <a href="${process.env.FRONTEND_URL || 'bookmyturf-zeta.vercel.app'}/turf/${turf._id}" style="display: inline-block; background-color: #f1f5f9; color: #334155; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; margin: 4px; border: 1px solid #e2e8f0;">Venue Details</a>
             </div>
 
             <!-- Support -->
@@ -373,7 +373,7 @@ const sendCancellationConfirmation = async (booking, user, turf, refundAmount = 
             ` : ''}
             
             <div style="text-align: center; margin-top: 32px;">
-              <a href="${process.env.FRONTEND_URL || 'https://bookmyturf.com'}/profile" style="display: inline-block; background-color: #3b82f6; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">View Profile</a>
+              <a href="${process.env.FRONTEND_URL || 'bookmyturf-zeta.vercel.app'}/profile" style="display: inline-block; background-color: #3b82f6; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">View Profile</a>
             </div>
           </div>
           
@@ -451,7 +451,7 @@ const sendBookingReminder = async (booking, user, turf) => {
             </div>
             
             <div style="text-align: center; margin-top: 32px;">
-              <a href="${process.env.FRONTEND_URL || 'https://bookmyturf.com'}/turf/${turf._id}" style="display: inline-block; background-color: #f59e0b; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">Get Directions</a>
+              <a href="${process.env.FRONTEND_URL || 'bookmyturf-zeta.vercel.app'}/turf/${turf._id}" style="display: inline-block; background-color: #f59e0b; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">Get Directions</a>
             </div>
           </div>
           
