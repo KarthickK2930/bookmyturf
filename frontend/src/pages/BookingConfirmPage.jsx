@@ -502,24 +502,4 @@ const BookingConfirmPage = () => {
   );
 };
 
-// Add this right before the closing export
-useEffect(() => {
-  // When confirmation page loads, clear the global timer data
-  // This prevents popup from showing after payment
-  const GLOBAL_TIMER_KEY = 'global_booking_timer';
-  const GLOBAL_SESSION_KEY = 'global_booking_session';
-  const GLOBAL_BOOKING_DATA_KEY = 'global_booking_data';
-  
-  localStorage.removeItem(GLOBAL_SESSION_KEY);
-  localStorage.removeItem(GLOBAL_TIMER_KEY);
-  localStorage.removeItem(GLOBAL_BOOKING_DATA_KEY);
-  
-  // Also remove any timer keys
-  Object.keys(localStorage).forEach(key => {
-    if (key.startsWith('booking_timer_') || key.startsWith('global_booking_')) {
-      localStorage.removeItem(key);
-    }
-  });
-}, []);
-
 export default BookingConfirmPage;

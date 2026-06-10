@@ -1,5 +1,5 @@
 // components/common/GlobalTimerPopup.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import api from '../../services/api';
@@ -7,13 +7,11 @@ import api from '../../services/api';
 const GlobalTimerPopup = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [showPopup, setShowPopup] = useState(false);
   const [timer, setTimer] = useState(0);
   const [pendingBookingData, setPendingBookingData] = useState(null);
+  const [savedTimerEnd, setSavedTimerEnd] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
-  
-  // ✅ CRITICAL: Use ref to prevent re-showing
-  const hasCancelledRef = useRef(false);
-  const isMountedRef = useRef(true);
 
   const GLOBAL_TIMER_KEY = 'global_booking_timer';
   const GLOBAL_SESSION_KEY = 'global_booking_session';
@@ -29,117 +27,122 @@ const GlobalTimerPopup = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // ✅ Clear all timer data completely
-  const clearAllTimerData = () => {
-    localStorage.removeItem(GLOBAL_SESSION_KEY);
-    localStorage.removeItem(GLOBAL_TIMER_KEY);
-    localStorage.removeItem(GLOBAL_BOOKING_DATA_KEY);
-    // Remove all timer-related items
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('booking_timer_') || key.startsWith('global_booking_')) {
-        localStorage.removeItem(key);
-      }
-    });
-  };
-
-  // ✅ Force kill popup (called on cancel/success)
-  const killPopup = () => {
-    hasCancelledRef.current = true;
-    clearAllTimerData();
-    setTimer(0);
-    setPendingBookingData(null);
-  };
-
-  // Listen for booking success
+  // Listen for the booking success event to instantly dismiss the timer popup
   useEffect(() => {
-    const onBookingSuccess = () => {
-      killPopup();
+    const forceClearTimerPopup = () => {
+      setShowPopup(false);
+      setTimer(0);
+      setPendingBookingData(null);
+      setSavedTimerEnd(null);
     };
-    window.addEventListener('booking-success', onBookingSuccess);
-    return () => window.removeEventListener('booking-success', onBookingSuccess);
+
+    window.addEventListener('booking-success', forceClearTimerPopup);
+    window.addEventListener('storage', forceClearTimerPopup);
+
+    return () => {
+      window.removeEventListener('booking-success', forceClearTimerPopup);
+      window.removeEventListener('storage', forceClearTimerPopup);
+    };
   }, []);
 
-  // Check for pending booking - but ONLY if not cancelled
+  // Ensure standard route changes also perform a clean-up safely
   useEffect(() => {
-    // ✅ DON'T check if already cancelled
-    if (hasCancelledRef.current) return;
+    if (location.pathname === '/profile') {
+      setShowPopup(false);
+      localStorage.removeItem(GLOBAL_SESSION_KEY);
+      localStorage.removeItem(GLOBAL_TIMER_KEY);
+      localStorage.removeItem(GLOBAL_BOOKING_DATA_KEY);
+    }
+  }, [location.pathname]);
+
+  // Check for pending booking
+  const checkPendingBooking = () => {
+    let savedSession = localStorage.getItem(GLOBAL_SESSION_KEY);
+    let savedTimerEnd = localStorage.getItem(GLOBAL_TIMER_KEY);
+    let savedBookingData = localStorage.getItem(GLOBAL_BOOKING_DATA_KEY);
     
-    // DON'T show on confirm page
-    if (location.pathname === '/booking/confirm') return;
-    
-    // DON'T show on profile page
-    if (location.pathname === '/profile') return;
-    
-    const savedSession = localStorage.getItem(GLOBAL_SESSION_KEY);
-    const savedTimerEnd = localStorage.getItem(GLOBAL_TIMER_KEY);
-    const savedBookingData = localStorage.getItem(GLOBAL_BOOKING_DATA_KEY);
+    if (!savedBookingData && location.pathname === '/booking/confirm' && location.state) {
+      const bookingData = location.state;
+      const endTime = Date.now() + 300 * 1000;
+      savedTimerEnd = endTime.toString();
+      savedSession = 'active';
+      savedBookingData = JSON.stringify({
+        ...bookingData,
+        timerEnd: endTime
+      });
+      
+      localStorage.setItem(GLOBAL_TIMER_KEY, savedTimerEnd);
+      localStorage.setItem(GLOBAL_SESSION_KEY, savedSession);
+      localStorage.setItem(GLOBAL_BOOKING_DATA_KEY, savedBookingData);
+    }
     
     if (savedSession === 'active' && savedTimerEnd && savedBookingData) {
       const remaining = Math.floor((parseInt(savedTimerEnd) - Date.now()) / 1000);
       if (remaining > 0 && remaining < 300) {
         setTimer(remaining);
+        setSavedTimerEnd(savedTimerEnd);
         setPendingBookingData(JSON.parse(savedBookingData));
-      } else {
-        // Clean expired
-        clearAllTimerData();
+        setShowPopup(true);
+        return true;
       }
     }
-  }, [location.pathname]);
+    return false;
+  };
 
-  // Timer countdown
   useEffect(() => {
-    if (!pendingBookingData || timer <= 0) return;
+    checkPendingBooking();
+    
+    const timer = setTimeout(() => {
+      checkPendingBooking();
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [location]);
+
+  // Timer update interval
+  useEffect(() => {
+    if (!showPopup || !savedTimerEnd) return;
     
     const interval = setInterval(() => {
-      if (hasCancelledRef.current) {
-        clearInterval(interval);
-        return;
-      }
-      
-      const savedTimerEnd = localStorage.getItem(GLOBAL_TIMER_KEY);
-      if (savedTimerEnd) {
-        const remaining = Math.floor((parseInt(savedTimerEnd) - Date.now()) / 1000);
-        if (remaining <= 0) {
-          clearAllTimerData();
-          setTimer(0);
-          setPendingBookingData(null);
-          toast.error('⏰ Booking time expired!');
-          clearInterval(interval);
-        } else {
-          setTimer(remaining);
-        }
+      const remaining = Math.floor((parseInt(savedTimerEnd) - Date.now()) / 1000);
+      if (remaining <= 0) {
+        setShowPopup(false);
+        localStorage.removeItem(GLOBAL_SESSION_KEY);
+        localStorage.removeItem(GLOBAL_TIMER_KEY);
+        localStorage.removeItem(GLOBAL_BOOKING_DATA_KEY);
+        toast.error('⏰ Booking time expired!');
+      } else {
+        setTimer(remaining);
       }
     }, 1000);
     
     return () => clearInterval(interval);
-  }, [pendingBookingData]);
+  }, [showPopup, savedTimerEnd]);
 
   const handleContinue = () => {
+    setShowPopup(false);
     if (pendingBookingData) {
       navigate('/booking/confirm', { state: pendingBookingData });
     }
   };
 
   const handleCancel = async () => {
-    // ✅ CRITICAL: Kill popup FIRST
-    killPopup();
+    setShowPopup(false);
+    localStorage.removeItem(GLOBAL_SESSION_KEY);
+    localStorage.removeItem(GLOBAL_TIMER_KEY);
+    localStorage.removeItem(GLOBAL_BOOKING_DATA_KEY);
     
-    // Unlock slots on server
     if (pendingBookingData) {
       await api.post('/bookings/unlock', {
         turfId: pendingBookingData?.turfId || pendingBookingData?.turf?._id,
         date: pendingBookingData?.selectedDate,
       }).catch(() => {});
     }
-    
     toast.error('Booking cancelled');
     navigate('/turfs');
   };
 
-  // ✅ DON'T show if cancelled or no data
-  if (hasCancelledRef.current || !pendingBookingData || timer <= 0) {
-    return null;
-  }
+  if (!showPopup) return null;
 
   const mins = Math.floor(timer / 60);
   const secs = timer % 60;
@@ -154,7 +157,8 @@ const GlobalTimerPopup = () => {
               ⏳
             </div>
             <div className="flex-1">
-              <p className="font-bold text-sm text-gray-900">Complete Your Booking</p>
+              <p className="font-bold text-sm text-gray-900">Booking Pending</p>
+              <p className="text-xs text-gray-500">Complete within</p>
               <p className="font-mono text-lg font-bold text-primary-600">
                 {mins}:{secs.toString().padStart(2, '0')}
               </p>
@@ -162,13 +166,13 @@ const GlobalTimerPopup = () => {
             <div className="flex gap-2">
               <button 
                 onClick={handleContinue}
-                className="bg-primary-600 text-white text-xs px-3 py-1.5 rounded-lg"
+                className="bg-primary-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-primary-700 transition-colors"
               >
                 Continue
               </button>
               <button 
                 onClick={handleCancel}
-                className="bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg"
+                className="bg-gray-100 text-gray-600 text-xs px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Cancel
               </button>
@@ -182,26 +186,29 @@ const GlobalTimerPopup = () => {
   // Desktop version
   return (
     <div className="fixed bottom-6 right-6 z-[9999] animate-slide-up">
-      <div className="bg-white rounded-2xl shadow-2xl border-l-4 border-primary-500 w-80 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl border-l-4 border-primary-500 w-80 p-4 hover:shadow-xl transition-shadow">
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center text-lg">
+          <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center text-lg flex-shrink-0">
             ⏳
           </div>
           <div className="flex-1">
-            <p className="font-bold text-sm text-gray-900">Complete Your Booking</p>
+            <p className="font-bold text-sm text-gray-900">Booking Pending</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Complete your booking within
+            </p>
             <p className="font-mono text-xl font-bold text-primary-600 mt-1">
               {mins}:{secs.toString().padStart(2, '0')}
             </p>
             <div className="flex gap-2 mt-3">
               <button 
                 onClick={handleContinue}
-                className="flex-1 bg-primary-600 text-white text-sm py-2 rounded-lg"
+                className="flex-1 bg-primary-600 text-white text-xs py-1.5 rounded-lg hover:bg-primary-700 transition-colors"
               >
-                Continue Booking
+                Continue
               </button>
               <button 
                 onClick={handleCancel}
-                className="flex-1 bg-red-500 text-white text-sm py-2 rounded-lg"
+                className="flex-1 bg-gray-100 text-gray-600 text-xs py-1.5 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Cancel
               </button>
