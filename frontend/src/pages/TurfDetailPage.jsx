@@ -59,10 +59,13 @@ const TurfDetailPage = () => {
     } finally { setLoading(false); }
   }, [id]);
 
-  const fetchSlots = useCallback(async () => {
+  // Modified to accept a boolean flag to prevent visual loaders during background updates
+  const fetchSlots = useCallback(async (showLoadingSpinner = false) => {
     if (!selectedDate || !selectedSport || !turf) return;
     try {
-      setLoadingSlots(true);
+      if (showLoadingSpinner) {
+        setLoadingSlots(true);
+      }
       const response = await api.get(`/slots/turf/${id}?date=${selectedDate}`);
       if (response.data?.data?.groupedSlots) {
         const { groupedSlots } = response.data.data;
@@ -75,47 +78,51 @@ const TurfDetailPage = () => {
         
         const allSlotsData = [...combined];
         const has2359 = allSlotsData.find(s => s.startTime === '23:59');
-        // In the public slot route, when adding 23:59 slot
-if (!has2359) {
-  allSlotsData.push({ 
-    _id: 'slot-23:59', 
-    startTime: '23:59', 
-    endTime: '23:59', 
-    price: turf.pricePerHour / 2,  // ✅ Should be half price for 30-min slot? Or full price?
-    isAvailable: true, 
-    isLastSlot: true, 
-    bookedBy: null 
-  });
-}
+        if (!has2359) {
+          allSlotsData.push({ 
+            _id: 'slot-23:59', 
+            startTime: '23:59', 
+            endTime: '23:59', 
+            price: turf.pricePerHour / 2,
+            isAvailable: true, 
+            isLastSlot: true, 
+            bookedBy: null 
+          });
+        }
         setAllSlots(allSlotsData.filter(slot => !isPastSlot(slot.startTime)));
         
         const displayOnly = allSlotsData.filter(slot => slot.startTime !== '23:59' && !isPastSlot(slot.startTime));
         setDisplaySlots(displayOnly);
 
-        const pending = localStorage.getItem('pendingSlots');
-        if (pending) {
-          try {
-            const data = JSON.parse(pending);
-            if (data.turfId === id) {
-              setSelectedDate(data.selectedDate);
-              setSelectedSport(data.selectedSport);
-              const startS = allSlotsData.find(s => s._id === data.startSlotId);
-              const endS = allSlotsData.find(s => s._id === data.endSlotId);
-              if (startS) setSelectedStartSlot(startS);
-              if (endS) setSelectedEndSlot(endS);
-              if (data.totalHours) setTotalHours(data.totalHours);
-              if (data.totalPrice) setTotalPrice(data.totalPrice);
-              localStorage.removeItem('pendingSlots');
-            }
-          } catch(e) { localStorage.removeItem('pendingSlots'); }
+        if (showLoadingSpinner) {
+          const pending = localStorage.getItem('pendingSlots');
+          if (pending) {
+            try {
+              const data = JSON.parse(pending);
+              if (data.turfId === id) {
+                setSelectedDate(data.selectedDate);
+                setSelectedSport(data.selectedSport);
+                const startS = allSlotsData.find(s => s._id === data.startSlotId);
+                const endS = allSlotsData.find(s => s._id === data.endSlotId);
+                if (startS) setSelectedStartSlot(startS);
+                if (endS) setSelectedEndSlot(endS);
+                if (data.totalHours) setTotalHours(data.totalHours);
+                if (data.totalPrice) setTotalPrice(data.totalPrice);
+                localStorage.removeItem('pendingSlots');
+              }
+            } catch(e) { localStorage.removeItem('pendingSlots'); }
+          }
         }
       } else { 
         generateDefaultSlots(); 
       }
     } catch (err) { 
       generateDefaultSlots(); 
+    } finally { 
+      if (showLoadingSpinner) {
+        setLoadingSlots(false); 
+      }
     }
-    finally { setLoadingSlots(false); }
   }, [id, selectedDate, selectedSport, turf]);
 
   const generateDefaultSlots = () => {
@@ -146,7 +153,69 @@ if (!has2359) {
   };
 
   useEffect(() => { fetchTurfDetails(); }, [fetchTurfDetails]);
-  useEffect(() => { if (turf && selectedDate && selectedSport) fetchSlots(); }, [fetchSlots]);
+
+  // Initial fetch with spinner when user changes date/sport
+  useEffect(() => { 
+    if (turf && selectedDate && selectedSport) {
+      fetchSlots(true); 
+    }
+  }, [turf, selectedDate, selectedSport, fetchSlots]);
+
+  // Silent background fetch interval (no loading spinner)
+  useEffect(() => {
+    if (!selectedDate || !selectedSport || !turf) return;
+    
+    const interval = setInterval(() => {
+      fetchSlots(false); 
+    }, 10000); // Refresh every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [selectedDate, selectedSport, turf, fetchSlots]);
+
+  // Checks if user's currently selected slots became booked or locked during background updates
+  useEffect(() => {
+    if (!selectedStartSlot || allSlots.length === 0) return;
+
+    const startIdx = allSlots.findIndex(s => s._id === selectedStartSlot._id);
+    const endIdx = selectedEndSlot ? allSlots.findIndex(s => s._id === selectedEndSlot._id) : -1;
+
+    if (startIdx === -1) {
+      setSelectedStartSlot(null);
+      setSelectedEndSlot(null);
+      setTotalHours(0);
+      setTotalPrice(0);
+      return;
+    }
+
+    const updatedStart = allSlots[startIdx];
+    if (isSlotBooked(updatedStart) || isSlotLocked(updatedStart)) {
+      setSelectedStartSlot(null);
+      setSelectedEndSlot(null);
+      setTotalHours(0);
+      setTotalPrice(0);
+      toast.error('⚠️ Your selected start slot is no longer available.');
+      return;
+    }
+
+    if (selectedEndSlot) {
+      if (endIdx === -1) {
+        setSelectedEndSlot(null);
+        setTotalHours(0);
+        setTotalPrice(0);
+        return;
+      }
+
+      const rangeSlots = allSlots.slice(startIdx, endIdx + 1);
+      const isAnyBlocked = rangeSlots.some(s => isSlotBooked(s) || isSlotLocked(s));
+      if (isAnyBlocked) {
+        setSelectedStartSlot(null);
+        setSelectedEndSlot(null);
+        setTotalHours(0);
+        setTotalPrice(0);
+        toast.error('⚠️ Some slots in your selected range have been booked or locked.');
+      }
+    }
+  }, [allSlots, selectedStartSlot, selectedEndSlot]);
 
   const isPastSlot = (slotTime) => {
     const today = new Date().toISOString().split('T')[0];
@@ -208,39 +277,32 @@ if (!has2359) {
   };
 
   const calculateBooking = (startSlot, endSlot) => {
-  if (!startSlot || !endSlot) return { hours: 0, price: 0 };
-  const startIdx = allSlots.findIndex(s => s._id === startSlot._id);
-  const endIdx = allSlots.findIndex(s => s._id === endSlot._id);
-  if (startIdx === -1 || endIdx === -1) return { hours: 0, price: 0 };
-  
-  const selectedSlots = allSlots.slice(startIdx, endIdx);
-  let hours;
-  
-  // ✅ FIX: For 11:59 PM slot (end of day)
-  if (isMidnightSlot(endSlot)) {
-    // If starting at 11:00 PM, only 1 hour (11:00 to 11:59)
-    if (startSlot.startTime === '23:00') {
-      hours = 1;
-    } 
-    // If starting at 11:30 PM, only 0.5 hours? But minimum is 1 hour
-    else if (startSlot.startTime === '23:30') {
-      hours = 0.5; // This should be 1 hour minimum
+    if (!startSlot || !endSlot) return { hours: 0, price: 0 };
+    const startIdx = allSlots.findIndex(s => s._id === startSlot._id);
+    const endIdx = allSlots.findIndex(s => s._id === endSlot._id);
+    if (startIdx === -1 || endIdx === -1) return { hours: 0, price: 0 };
+    
+    const selectedSlots = allSlots.slice(startIdx, endIdx);
+    let hours;
+    
+    if (isMidnightSlot(endSlot)) {
+      if (startSlot.startTime === '23:00') {
+        hours = 1;
+      } else if (startSlot.startTime === '23:30') {
+        hours = 0.5; 
+      } else {
+        hours = getHoursDiff(startSlot.startTime, '23:00') + 1;
+      }
+    } else {
+      hours = getHoursDiff(startSlot.startTime, endSlot.startTime);
     }
-    else {
-      hours = getHoursDiff(startSlot.startTime, '23:00') + 1;
-    }
-  } else {
-    hours = getHoursDiff(startSlot.startTime, endSlot.startTime);
-  }
-  
-  // ✅ Ensure minimum 1 hour
-  if (hours < 1) hours = 1;
-  
-  // Calculate price based on actual slot prices
-  const price = selectedSlots.reduce((sum, slot) => sum + ((slot.price || 0) / 2), 0);
-  
-  return { hours, price: Math.round(price) };
-};
+    
+    if (hours < 1) hours = 1;
+    
+    const price = selectedSlots.reduce((sum, slot) => sum + ((slot.price || 0) / 2), 0);
+    
+    return { hours, price: Math.round(price) };
+  };
 
   useEffect(() => {
     if (selectedStartSlot && selectedEndSlot) {
@@ -327,16 +389,6 @@ if (!has2359) {
     
     navigate('/booking/confirm', { state: st });
   };
-
-  useEffect(() => {
-    if (!selectedDate || !selectedSport || !turf) return;
-    
-    const interval = setInterval(() => {
-      fetchSlots();
-    }, 10000); // Refresh every 10 seconds
-
-    return () => clearInterval(interval);
-  }, [fetchSlots]);
 
   if (loading) return <LoadingSpinner />;
   if (error) return <div className="min-h-screen flex items-center justify-center"><ErrorAlert message={error} /></div>;
@@ -426,70 +478,64 @@ if (!has2359) {
               : displaySlots.length === 0 ? <div className="text-center py-10"><div className="text-5xl mb-3">⏰</div><p className="text-gray-500 font-semibold">No slots available</p></div>
               : (
                 <>
-
                   <div className="grid grid-cols-4 md:grid-cols-6 gap-1.5 max-h-[400px] overflow-y-auto p-1">
-  {displaySlots.map(slot => {
-    const isStart = slot._id === selectedStartSlot?._id;
-    const isEnd = slot._id === selectedEndSlot?._id;
-    const isInRange = isSlotInRange(slot);
-    const isBooked = isSlotBooked(slot);
-    const isLocked = isSlotLocked(slot);
-    return (
-      <button 
-        key={slot._id} 
-        onClick={() => {
-          if (isLocked) {
-            toast.error('⏳ Slot being booked by another user');
-            return;
-          }
-          if (isBooked) {
-            toast.error('🔴 Already booked');
-            return;
-          }
-          handleSlotClick(slot);
-        }} 
-        disabled={isBooked}
-        className={`p-2 rounded-xl text-center text-xs font-semibold transition-all ${
-          // Selected Start Slot
-          isStart ? 'bg-green-600 text-white shadow-floating scale-105' :
-          // Selected End Slot  
-          isEnd ? 'bg-green-600 text-white shadow-floating scale-105' :
-          // In Range (between start and end)
-          isInRange ? 'bg-green-100 text-green-800 border-2 border-green-400' :
-          // Booked Slot
-          isBooked ? 'bg-red-200 text-red-700 border-2 border-red-400 cursor-not-allowed opacity-80' :
-          // Locked/In Progress Slot
-          isLocked ? 'bg-orange-100 text-orange-700 border-2 border-orange-400 cursor-pointer' :
-          // Available Slot
-          'bg-white border-2 border-gray-200 text-gray-700 hover:border-green-400 hover:bg-green-50 cursor-pointer'
-        }`}>
-        <div className="font-bold text-[11px]">{formatTime(slot.startTime)}</div>
-        <div className="mt-0.5 text-[10px]">
-          {isBooked ? '🔴 BOOKED' : isLocked ? '⏳ IN PROGRESS' : `₹${slot.price || turf.pricePerHour || 0}`}
-        </div>
-      </button>
-    );
-  })}
-</div>
-{/* ✅ Color Legend - One line for user understanding */}
-      <div className="flex flex-wrap justify-center gap-4 mt-4 pt-3 border-t border-gray-100">
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded bg-green-600"></div>
-          <span className="text-xs text-gray-600">Selected</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded bg-red-200 border border-red-400"></div>
-          <span className="text-xs text-gray-600">Booked</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded bg-orange-100 border border-orange-400"></div>
-          <span className="text-xs text-gray-600">In Progress</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded bg-white border border-gray-300"></div>
-          <span className="text-xs text-gray-600">Available</span>
-        </div>
-      </div>
+                    {displaySlots.map(slot => {
+                      const isStart = slot._id === selectedStartSlot?._id;
+                      const isEnd = slot._id === selectedEndSlot?._id;
+                      const isInRange = isSlotInRange(slot);
+                      const isBooked = isSlotBooked(slot);
+                      const isLocked = isSlotLocked(slot);
+                      return (
+                        <button 
+                          key={slot._id} 
+                          onClick={() => {
+                            if (isLocked) {
+                              toast.error('⏳ Slot being booked by another user');
+                              return;
+                            }
+                            if (isBooked) {
+                              toast.error('🔴 Already booked');
+                              return;
+                            }
+                            handleSlotClick(slot);
+                          }} 
+                          disabled={isBooked}
+                          className={`p-2 rounded-xl text-center text-xs font-semibold transition-all ${
+                            isStart ? 'bg-green-600 text-white shadow-floating scale-105' :
+                            isEnd ? 'bg-green-600 text-white shadow-floating scale-105' :
+                            isInRange ? 'bg-green-100 text-green-800 border-2 border-green-400' :
+                            isBooked ? 'bg-red-200 text-red-700 border-2 border-red-400 cursor-not-allowed opacity-80' :
+                            isLocked ? 'bg-orange-100 text-orange-700 border-2 border-orange-400 cursor-pointer' :
+                            'bg-white border-2 border-gray-200 text-gray-700 hover:border-green-400 hover:bg-green-50 cursor-pointer'
+                          }`}>
+                          <div className="font-bold text-[11px]">{formatTime(slot.startTime)}</div>
+                          <div className="mt-0.5 text-[10px]">
+                            {isBooked ? '🔴 BOOKED' : isLocked ? '⏳ IN PROGRESS' : `₹${slot.price || turf.pricePerHour || 0}`}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex flex-wrap justify-center gap-4 mt-4 pt-3 border-t border-gray-100">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-4 h-4 rounded bg-green-600"></div>
+                      <span className="text-xs text-gray-600">Selected</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-4 h-4 rounded bg-red-200 border border-red-400"></div>
+                      <span className="text-xs text-gray-600">Booked</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-4 h-4 rounded bg-orange-100 border border-orange-400"></div>
+                      <span className="text-xs text-gray-600">In Progress</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-4 h-4 rounded bg-white border border-gray-300"></div>
+                      <span className="text-xs text-gray-600">Available</span>
+                    </div>
+                  </div>
+
                   {selectedStartSlot && (
                     <div className="mt-4 p-4 bg-gradient-to-r from-primary-50 to-blue-50 rounded-xl border">
                       <div className="flex items-center justify-between">
