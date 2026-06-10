@@ -1,4 +1,3 @@
-// components/common/GlobalTimerPopup.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -52,6 +51,9 @@ const GlobalTimerPopup = () => {
       localStorage.removeItem(GLOBAL_SESSION_KEY);
       localStorage.removeItem(GLOBAL_TIMER_KEY);
       localStorage.removeItem(GLOBAL_BOOKING_DATA_KEY);
+    } else if (location.pathname === '/booking/confirm') {
+      // Hide the reminder popup when the user is already on the confirmation page
+      setShowPopup(false);
     }
   }, [location.pathname]);
 
@@ -82,10 +84,17 @@ const GlobalTimerPopup = () => {
         setTimer(remaining);
         setSavedTimerEnd(savedTimerEnd);
         setPendingBookingData(JSON.parse(savedBookingData));
-        setShowPopup(true);
+        
+        // Only display the popup if the user has navigated away from the confirmation page
+        if (location.pathname === '/booking/confirm') {
+          setShowPopup(false);
+        } else {
+          setShowPopup(true);
+        }
         return true;
       }
     }
+    setShowPopup(false);
     return false;
   };
 
@@ -131,6 +140,18 @@ const GlobalTimerPopup = () => {
     localStorage.removeItem(GLOBAL_SESSION_KEY);
     localStorage.removeItem(GLOBAL_TIMER_KEY);
     localStorage.removeItem(GLOBAL_BOOKING_DATA_KEY);
+    localStorage.removeItem('pendingSlots');
+    
+    // Clear wildcard/specific booking timers so confirmation logic stops re-writing to localStorage
+    const wildcardKeys = Object.keys(localStorage).filter(key => 
+      key.startsWith('booking_timer_') || 
+      key.startsWith('global_booking_')
+    );
+    wildcardKeys.forEach(key => localStorage.removeItem(key));
+
+    // Dispatch events to instantly halt any active timers or confirmation page states
+    window.dispatchEvent(new Event('booking-cancelled'));
+    window.dispatchEvent(new Event('storage'));
     
     if (pendingBookingData) {
       await api.post('/bookings/unlock', {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import api from '../services/api';
@@ -143,6 +143,8 @@ const BookingConfirmPage = () => {
   const GLOBAL_BOOKING_DATA_KEY = 'global_booking_data';
   const TIMER_KEY = `booking_timer_${selectedStartTime}_${selectedEndTime}_${selectedDate}`;
 
+  const isCancelledRef = useRef(false);
+
   const getInitialTimer = () => {
     const savedGlobalTimer = localStorage.getItem(GLOBAL_TIMER_KEY);
     if (savedGlobalTimer) {
@@ -164,8 +166,18 @@ const BookingConfirmPage = () => {
 
   const [timer, setTimer] = useState(getInitialTimer);
 
+  // Monitor cancel events to instantly suspend writing states
   useEffect(() => {
-    if (showSuccess) return;
+    const handleCancelled = () => {
+      isCancelledRef.current = true;
+      setTimer(0);
+    };
+    window.addEventListener('booking-cancelled', handleCancelled);
+    return () => window.removeEventListener('booking-cancelled', handleCancelled);
+  }, []);
+
+  useEffect(() => {
+    if (showSuccess || isCancelledRef.current) return;
     if (bookingData && timer > 0 && timer < 300) {
       const endTime = Date.now() + timer * 1000;
       localStorage.setItem(GLOBAL_TIMER_KEY, endTime.toString());
@@ -175,7 +187,7 @@ const BookingConfirmPage = () => {
   }, [bookingData, timer, showSuccess]);
 
   useEffect(() => {
-    if (showSuccess) return;
+    if (showSuccess || isCancelledRef.current) return;
 
     const keys = Object.keys(localStorage);
     keys.forEach(key => {
@@ -188,6 +200,10 @@ const BookingConfirmPage = () => {
     }
 
     const t = setInterval(() => {
+      if (isCancelledRef.current) {
+        clearInterval(t);
+        return;
+      }
       const savedEnd = localStorage.getItem(TIMER_KEY);
       if (savedEnd) {
         const remaining = Math.floor((parseInt(savedEnd) - Date.now()) / 1000);
@@ -208,7 +224,7 @@ const BookingConfirmPage = () => {
   }, [TIMER_KEY, bookingData, showSuccess]);
 
   useEffect(() => {
-    if (showSuccess) return;
+    if (showSuccess || isCancelledRef.current) return;
     if (timer === 0 && bookingData) {
       toast.error('⏰ Time expired! Slots released.');
       localStorage.removeItem(GLOBAL_TIMER_KEY);
@@ -269,27 +285,23 @@ const BookingConfirmPage = () => {
       description: `${turf?.name} - ${selectedSport}`,
       order_id: razorpayOrder.id,
       handler: async function (response) {
-        // Step 1: Instantly halt local timer states
         setTimer(0);
         setSuccessBookingId(bookingId);
         setSuccessBookingNumber(bookingNumber);
         setShowSuccess(true);
         
-        // Step 2: Delete precise session keys in local storage
         localStorage.removeItem(TIMER_KEY);
         localStorage.removeItem(GLOBAL_TIMER_KEY);
         localStorage.removeItem(GLOBAL_SESSION_KEY);
         localStorage.removeItem(GLOBAL_BOOKING_DATA_KEY);
         localStorage.removeItem('pendingSlots');
 
-        // Step 3: Delete wildcard timer remnants
         const wildcardKeys = Object.keys(localStorage).filter(key => 
           key.startsWith('booking_timer_') || 
           key.startsWith('global_booking_')
         );
         wildcardKeys.forEach(key => localStorage.removeItem(key));
         
-        // Step 4: Dispatch events to close any global layout banners/popups
         window.dispatchEvent(new Event('booking-success'));
         window.dispatchEvent(new Event('storage'));
         
