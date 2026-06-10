@@ -51,9 +51,6 @@ const GlobalTimerPopup = () => {
       localStorage.removeItem(GLOBAL_SESSION_KEY);
       localStorage.removeItem(GLOBAL_TIMER_KEY);
       localStorage.removeItem(GLOBAL_BOOKING_DATA_KEY);
-    } else if (location.pathname === '/booking/confirm') {
-      // Hide the reminder popup when the user is already on the confirmation page
-      setShowPopup(false);
     }
   }, [location.pathname]);
 
@@ -84,13 +81,7 @@ const GlobalTimerPopup = () => {
         setTimer(remaining);
         setSavedTimerEnd(savedTimerEnd);
         setPendingBookingData(JSON.parse(savedBookingData));
-        
-        // Only display the popup if the user has navigated away from the confirmation page
-        if (location.pathname === '/booking/confirm') {
-          setShowPopup(false);
-        } else {
-          setShowPopup(true);
-        }
+        setShowPopup(true); // Popup remains visible on confirm page
         return true;
       }
     }
@@ -142,14 +133,14 @@ const GlobalTimerPopup = () => {
     localStorage.removeItem(GLOBAL_BOOKING_DATA_KEY);
     localStorage.removeItem('pendingSlots');
     
-    // Clear wildcard/specific booking timers so confirmation logic stops re-writing to localStorage
+    // Clear wildcard booking timers
     const wildcardKeys = Object.keys(localStorage).filter(key => 
       key.startsWith('booking_timer_') || 
       key.startsWith('global_booking_')
     );
     wildcardKeys.forEach(key => localStorage.removeItem(key));
 
-    // Dispatch events to instantly halt any active timers or confirmation page states
+    // Dispatch custom cancellation event to stop Confirm Page timers instantly
     window.dispatchEvent(new Event('booking-cancelled'));
     window.dispatchEvent(new Event('storage'));
     
