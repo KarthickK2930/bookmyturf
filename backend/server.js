@@ -474,7 +474,7 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, message: 'No file' });
   
   // ✅ Just add full URL here
-  const fullUrl = `http://localhost:5000/uploads/${req.file.filename}`;
+  const fullUrl = `https://bookmyturf-api-2zab.onrender.com/uploads/${req.file.filename}`;
   
   res.json({ success: true, url: fullUrl });
 });
