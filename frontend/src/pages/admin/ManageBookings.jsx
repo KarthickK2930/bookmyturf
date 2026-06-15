@@ -73,11 +73,10 @@ const ManageBookings = () => {
     catch (err) { toast.error('Failed to update status'); }
   };
 
-  // ✅ Manual Payment Update for Venue QR/Cash
   const handleManualPaymentUpdate = async (bookingId, paymentType, amount) => {
     try {
       const response = await api.put(`/admin/bookings/${bookingId}/payment`, {
-        paymentType, // 'full' or 'remaining'
+        paymentType,
         amount,
         paymentMethod: 'venue_qr'
       });
@@ -152,7 +151,6 @@ const ManageBookings = () => {
     setShowDetailsModal(true);
   };
 
-  // Helper function to get original slot amount - FIXED
   const getOriginalSlotAmount = (booking) => {
     if (booking.originalAmount && booking.originalAmount > 0) {
       return booking.originalAmount;
@@ -166,7 +164,6 @@ const ManageBookings = () => {
     return booking.totalAmount;
   };
 
-  // Helper function to get price per hour - FIXED
   const getPricePerHour = (booking) => {
     const originalAmount = getOriginalSlotAmount(booking);
     if (originalAmount && booking.totalHours && booking.totalHours > 0) {
@@ -264,11 +261,15 @@ const ManageBookings = () => {
               const originalAmount = getOriginalSlotAmount(booking);
               return (
                 <div key={booking._id} className="bg-white rounded-xl shadow-md p-4">
-                  {/* Mobile card content remains same */}
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">#{booking._id?.slice(-8)}</span>
-                      <h3 className="font-semibold mt-1">{booking.turf?.name}</h3>
+                      <span className="text-xs font-mono bg-primary-100 text-primary-700 px-2 py-1 rounded font-semibold inline-block mb-1">
+                        #{booking.bookingNumber || booking._id?.slice(-8).toUpperCase()}
+                      </span>
+                      <div className="text-xs font-mono text-gray-500">
+                        ID: {booking._id?.slice(-8)}
+                      </div>
+                      <h3 className="font-semibold mt-2">{booking.turf?.name}</h3>
                       <p className="text-xs text-gray-500">{booking.turf?.address?.city}</p>
                     </div>
                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(booking.status)}`}>
@@ -332,7 +333,7 @@ const ManageBookings = () => {
           <table className="w-full min-w-[1500px]">
             <thead className="bg-gray-50 border-b sticky top-0">
               <tr>
-                <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">ID</th>
+                <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">BOOKING NO & ID</th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">User</th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Turf</th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Date & Time</th>
@@ -354,7 +355,14 @@ const ManageBookings = () => {
                   const originalAmount = getOriginalSlotAmount(booking);
                   return (
                     <tr key={booking._id} className="hover:bg-gray-50 transition-colors border-b">
-                      <td className="px-3 py-3"><span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">{booking._id?.slice(-8)}</span></td>
+                      <td className="px-3 py-3">
+                        <div className="text-xs font-mono bg-primary-100 text-primary-700 px-2 py-1 rounded font-semibold mb-1 text-center">
+                          {booking.bookingNumber || booking._id?.slice(-8).toUpperCase()}
+                        </div>
+                        <div className="text-xs font-mono bg-gray-100 px-2 py-1 rounded text-center">
+                          ID: {booking._id?.slice(-8)}
+                        </div>
+                      </td>
                       <td className="px-3 py-3"><div className="font-medium text-sm">{booking.user?.name || 'N/A'}</div><div className="text-xs text-gray-500">{booking.user?.mobileNumber}</div></td>
                       <td className="px-3 py-3"><div className="font-medium text-sm">{booking.turf?.name}</div><div className="text-xs text-gray-500">{booking.turf?.address?.city}</div></td>
                       <td className="px-3 py-3"><div className="text-xs font-medium">{new Date(booking.date).toLocaleDateString('en-IN')}</div><div className="text-xs text-gray-500">{formatTime(booking.startTime)} - {formatTime(booking.endTime)}</div><div className="text-xs text-gray-400">{booking.totalHours}h</div></td>
@@ -378,7 +386,13 @@ const ManageBookings = () => {
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
               <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center rounded-t-2xl">
-                <div><h2 className="text-2xl font-bold">Booking Details</h2><p className="text-sm text-gray-500">ID: {selectedBooking._id}</p></div>
+                <div>
+                  <h2 className="text-2xl font-bold">Booking Details</h2>
+                  <p className="text-sm text-primary-600 font-semibold">
+                    Booking No: {selectedBooking.bookingNumber || selectedBooking._id?.slice(-8).toUpperCase()}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">ID: {selectedBooking._id}</p>
+                </div>
                 <button onClick={() => setShowDetailsModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl p-2 hover:bg-gray-100 rounded-full">✕</button>
               </div>
               
@@ -425,58 +439,56 @@ const ManageBookings = () => {
                       </div>
                     </div>
                     
-                    {/* ✅ Venue Payment Collection Section */}
-                    {/* ✅ Venue Payment Collection Section - Updated */}
-{selectedBooking.status === 'confirmed' && selectedBooking.paymentStatus !== 'full_paid' && (
-  <div className="bg-yellow-50 rounded-xl p-5">
-    <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
-      <span>🏧</span> Venue Payment Collection
-    </h3>
-    <div className="space-y-3">
-      <div className="text-sm text-gray-600">
-        <p>Current Status: 
-          <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold ${getPaymentColor(selectedBooking.paymentStatus)}`}>
-            {selectedBooking.paymentStatus === 'advance_paid' ? 'Advance Paid Only' : 'No Payment Yet'}
-          </span>
-        </p>
-        {selectedBooking.paymentStatus === 'advance_paid' && (
-          <p className="mt-1">✅ Advance Paid: <span className="font-bold text-green-600">₹{selectedBooking.advanceAmount}</span></p>
-        )}
-        <p className="mt-1">💰 Total Amount: <span className="font-bold">₹{selectedBooking.totalAmount}</span></p>
-        <p className="text-orange-600 font-semibold mt-1">
-          {selectedBooking.paymentStatus === 'advance_paid' 
-            ? `Remaining to collect at venue: ₹${selectedBooking.remainingAmount}`
-            : `Full amount to collect at venue: ₹${selectedBooking.totalAmount}`}
-        </p>
-      </div>
-      
-      <div className="grid grid-cols-1 gap-3">
-        {/* Single Button - Mark as Fully Paid at Venue */}
-        <button
-          onClick={async () => {
-            const confirmMessage = selectedBooking.paymentStatus === 'advance_paid'
-              ? `Confirm that user has paid the remaining ₹${selectedBooking.remainingAmount} at venue?`
-              : `Confirm that user has paid the full amount ₹${selectedBooking.totalAmount} at venue?`;
-            
-            if (window.confirm(confirmMessage)) {
-              await handleManualPaymentUpdate(selectedBooking._id, 'full', selectedBooking.totalAmount);
-            }
-          }}
-          className="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold"
-        >
-          {selectedBooking.paymentStatus === 'advance_paid' 
-            ? `✅ Mark as Fully Paid (Collect Balance Amount₹${selectedBooking.remainingAmount})`
-            : `✅ Mark as Fully Paid (Collect ₹${selectedBooking.totalAmount})`}
-        </button>
-        
-        <div className="text-xs text-gray-500 text-center border-t border-yellow-200 pt-3">
-          <p>📱 Ask user to show payment confirmation (GPay/PhonePe/Cash)</p>
-          <p className="mt-1">After confirming payment, click the button above to update status</p>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+                    {/* Venue Payment Collection Section */}
+                    {selectedBooking.status === 'confirmed' && selectedBooking.paymentStatus !== 'full_paid' && (
+                      <div className="bg-yellow-50 rounded-xl p-5">
+                        <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+                          <span>🏧</span> Venue Payment Collection
+                        </h3>
+                        <div className="space-y-3">
+                          <div className="text-sm text-gray-600">
+                            <p>Current Status: 
+                              <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold ${getPaymentColor(selectedBooking.paymentStatus)}`}>
+                                {selectedBooking.paymentStatus === 'advance_paid' ? 'Advance Paid Only' : 'No Payment Yet'}
+                              </span>
+                            </p>
+                            {selectedBooking.paymentStatus === 'advance_paid' && (
+                              <p className="mt-1">✅ Advance Paid: <span className="font-bold text-green-600">₹{selectedBooking.advanceAmount}</span></p>
+                            )}
+                            <p className="mt-1">💰 Total Amount: <span className="font-bold">₹{selectedBooking.totalAmount}</span></p>
+                            <p className="text-orange-600 font-semibold mt-1">
+                              {selectedBooking.paymentStatus === 'advance_paid' 
+                                ? `Remaining to collect at venue: ₹${selectedBooking.remainingAmount}`
+                                : `Full amount to collect at venue: ₹${selectedBooking.totalAmount}`}
+                            </p>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 gap-3">
+                            <button
+                              onClick={async () => {
+                                const confirmMessage = selectedBooking.paymentStatus === 'advance_paid'
+                                  ? `Confirm that user has paid the remaining ₹${selectedBooking.remainingAmount} at venue?`
+                                  : `Confirm that user has paid the full amount ₹${selectedBooking.totalAmount} at venue?`;
+                                
+                                if (window.confirm(confirmMessage)) {
+                                  await handleManualPaymentUpdate(selectedBooking._id, 'full', selectedBooking.totalAmount);
+                                }
+                              }}
+                              className="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold"
+                            >
+                              {selectedBooking.paymentStatus === 'advance_paid' 
+                                ? `✅ Mark as Fully Paid (Collect Balance ₹${selectedBooking.remainingAmount})`
+                                : `✅ Mark as Fully Paid (Collect ₹${selectedBooking.totalAmount})`}
+                            </button>
+                            
+                            <div className="text-xs text-gray-500 text-center border-t border-yellow-200 pt-3">
+                              <p>📱 Ask user to show payment confirmation (GPay/PhonePe/Cash)</p>
+                              <p className="mt-1">After confirming payment, click the button above to update status</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     
                     {/* Cancelled Booking Section */}
                     {selectedBooking.status === 'cancelled' && (
