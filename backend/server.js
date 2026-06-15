@@ -469,9 +469,14 @@ const storage = multer.diskStorage({
 const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 
 app.use('/uploads', express.static(uploadDir));
+// ============ IMAGE UPLOAD ============
 app.post('/api/upload', upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, message: 'No file' });
-  res.json({ success: true, url: `/uploads/${req.file.filename}` });
+  
+  // ✅ Just add full URL here
+  const fullUrl = `http://localhost:5000/uploads/${req.file.filename}`;
+  
+  res.json({ success: true, url: fullUrl });
 });
 app.post('/api/upload/multiple', upload.array('images', 5), (req, res) => {
   if (!req.files || req.files.length === 0) return res.status(400).json({ success: false, message: 'No files' });
