@@ -466,22 +466,63 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
+// ============ IMAGE UPLOAD (MongoDB Base64) ============
+const multer = require('multer');
+const upload = multer({ 
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
-app.use('/uploads', express.static(uploadDir));
-// ============ IMAGE UPLOAD ============
-app.post('/api/upload', upload.single('image'), (req, res) => {
-  if (!req.file) return res.status(400).json({ success: false, message: 'No file' });
-  
-  // ✅ Just add full URL here
-  const fullUrl = `https://bookmyturf-api-2zab.onrender.com/uploads/${req.file.filename}`;
-  
-  res.json({ success: true, url: fullUrl });
+// Single image upload - Store as Base64 in MongoDB
+app.post('/api/upload', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+
+    // Convert image to base64
+    const base64Image = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype;
+    const imageUrl = `data:${mimeType};base64,${base64Image}`;
+
+    console.log('✅ Image converted to base64, size:', req.file.size);
+
+    res.json({ 
+      success: true, 
+      url: imageUrl,
+      message: 'Image uploaded successfully'
+    });
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
-app.post('/api/upload/multiple', upload.array('images', 5), (req, res) => {
-  if (!req.files || req.files.length === 0) return res.status(400).json({ success: false, message: 'No files' });
-  res.json({ success: true, urls: req.files.map(f => `/uploads/${f.filename}`) });
+
+// Multiple images upload
+app.post('/api/upload/multiple', upload.array('images', 5), async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ success: false, message: 'No files uploaded' });
+    }
+
+    const urls = req.files.map(file => {
+      const base64Image = file.buffer.toString('base64');
+      const mimeType = file.mimetype;
+      return `data:${mimeType};base64,${base64Image}`;
+    });
+
+    console.log('✅ Uploaded', urls.length, 'images as base64');
+
+    res.json({ 
+      success: true, 
+      urls: urls,
+      message: `${urls.length} images uploaded successfully`
+    });
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
+// ============ END IMAGE UPLOAD ============
 // ============ END IMAGE UPLOAD ============
 
 // Basic route
