@@ -11,7 +11,7 @@ const Footer = () => (
           <div className="w-9 h-9 bg-primary-600 rounded-lg flex items-center justify-center">
             <span className="text-lg">⚽</span>
           </div>
-          <span className="font-bold text-xl text-primary-400">BOOKMYTURF</span>
+          <span className="font-bold text-xl text-primary-400">BOOKMYTURFVNR</span>
         </div>
         <p className="text-gray-400 text-xs px-4">Your one-stop platform for booking premium sports turfs online.</p>
       </div>
@@ -84,7 +84,7 @@ const Footer = () => (
 
       {/* Divider */}
       <div className="border-t border-gray-800 pt-3 text-center">
-        <p className="text-gray-500 text-xs">© 2026 BookMyTurf. All rights reserved.</p>
+        <p className="text-gray-500 text-xs">© 2026 BookMyTurfVNR. All rights reserved.</p>
       </div>
     </div>
   </footer>

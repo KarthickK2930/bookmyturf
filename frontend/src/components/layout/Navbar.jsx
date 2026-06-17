@@ -38,7 +38,7 @@ const Navbar = () => {
                 <div className="w-7 h-7 bg-primary-600 rounded-lg flex items-center justify-center">
                   <span className="text-white text-sm">⚽</span>
                 </div>
-                <span className="font-bold text-base text-primary-600">BOOKMYTURF</span>
+                <span className="font-bold text-base text-primary-600">BOOKMYTURFVNR</span>
               </Link>
 
               {isAuthenticated && (
@@ -88,7 +88,7 @@ const Navbar = () => {
                 <span className="text-white text-lg">⚽</span>
               </div>
               <div>
-                <span className="font-display text-xl text-primary-600 tracking-wide leading-none block">BOOKMYTURF</span>
+                <span className="font-display text-xl text-primary-600 tracking-wide leading-none block">BOOKMYTURFVNR</span>
                 <span className="text-[9px] text-gray-400 font-body uppercase tracking-widest leading-none">Play More. Worry Less.</span>
               </div>
             </Link>
