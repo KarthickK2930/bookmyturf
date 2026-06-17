@@ -6,19 +6,17 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 
 dotenv.config();
 
 const app = express();
 
-// Middleware
+// ============ MIDDLEWARE ============
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));  // ✅ Single definition
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// Database connection
+// ============ DATABASE ============
 mongoose.connect(process.env.MONGODB_URI, {
   serverSelectionTimeoutMS: 30000,
   socketTimeoutMS: 45000,
@@ -26,10 +24,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 .then(() => console.log('✅ MongoDB connected successfully'))
 .catch(err => console.error('❌ MongoDB connection error:', err));
 
-// Import routes
-// ... other code ...
-
-// Import routes
+// ============ IMPORT ROUTES ============
 const turfRoutes = require('./routes/turfRoutes');
 const userRoutes = require('./routes/userRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
@@ -40,7 +35,7 @@ const slotRoutes = require('./routes/slotRoutes');
 const offerRoutes = require('./routes/offerRoutes');
 const refundRoutes = require('./routes/refundRoutes');
 
-// Use routes - ✅ FIXED
+// ============ USE ROUTES ============
 app.use('/api/turfs', turfRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/bookings', bookingRoutes);
@@ -49,9 +44,9 @@ app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/slots', slotRoutes);
 app.use('/api/refund', refundRoutes);
-app.use('/api/offers', offerRoutes);  // ✅ This handles /available and /validate
-app.use('/api/admin/offers', offerRoutes);  // ✅ This handles admin routes
-// ... rest of code
+app.use('/api/offers', offerRoutes);
+app.use('/api/admin/offers', offerRoutes);
+
 // ============ PUBLIC SLOT ROUTE ============
 app.get('/api/slots/turf/:turfId', async (req, res) => {
   try {
@@ -80,8 +75,6 @@ app.get('/api/slots/turf/:turfId', async (req, res) => {
         status: 'locked',
         lockedUntil: { $gt: new Date() }
       }).lean();
-
-      console.log(`📅 Date: ${date}, Confirmed: ${bookings.length}, Locked: ${lockedBookings.length}`);
 
       slots.forEach(slot => {
         const isBooked = bookings.some(booking => {
@@ -144,13 +137,11 @@ app.get('/api/slots/turf/:turfId', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-// ============ END PUBLIC SLOT ROUTE ============
 
 // ============ REPORT ROUTES ============
 const auth = require('./middleware/auth');
 const adminAuth = require('./middleware/adminAuth');
 
-// Earnings by period API
 app.get('/api/admin/reports/earnings', auth, adminAuth, async (req, res) => {
   try {
     const Booking = require('./models/Booking');
@@ -200,7 +191,6 @@ app.get('/api/admin/reports/earnings', auth, adminAuth, async (req, res) => {
   }
 });
 
-// Bookings summary API
 app.get('/api/admin/reports/bookings-summary', auth, adminAuth, async (req, res) => {
   try {
     const Booking = require('./models/Booking');
@@ -236,7 +226,6 @@ app.get('/api/admin/reports/bookings-summary', auth, adminAuth, async (req, res)
   }
 });
 
-// Revenue by sport API
 app.get('/api/admin/reports/revenue-by-sport', auth, adminAuth, async (req, res) => {
   try {
     const Booking = require('./models/Booking');
@@ -266,7 +255,6 @@ app.get('/api/admin/reports/revenue-by-sport', auth, adminAuth, async (req, res)
   }
 });
 
-// Monthly trend API
 app.get('/api/admin/reports/monthly-trend', auth, adminAuth, async (req, res) => {
   try {
     const Booking = require('./models/Booking');
@@ -307,7 +295,6 @@ app.get('/api/admin/reports/monthly-trend', auth, adminAuth, async (req, res) =>
   }
 });
 
-// Top turfs API
 app.get('/api/admin/reports/top-turfs', auth, adminAuth, async (req, res) => {
   try {
     const Booking = require('./models/Booking');
@@ -350,11 +337,8 @@ app.get('/api/admin/reports/top-turfs', auth, adminAuth, async (req, res) => {
     res.json({ success: true, data: [] });
   }
 });
-// ============ END REPORT ROUTES ============
 
 // ============ SLOT LOCK/UNLOCK ROUTES ============
-
-// Lock slots when entering confirmation page
 app.post('/api/bookings/lock', auth, async (req, res) => {
   try {
     const Booking = require('./models/Booking');
@@ -409,12 +393,6 @@ app.post('/api/bookings/lock', auth, async (req, res) => {
       { upsert: true, new: true }
     );
 
-    console.log('🔒 Lock saved with full data:', { 
-      totalHours: lock.totalHours, 
-      totalAmount: lock.totalAmount,
-      sport: lock.sport
-    });
-
     res.json({ success: true, message: 'Slots locked for 5 minutes', data: { lock } });
   } catch (error) {
     console.error('Lock error:', error);
@@ -422,7 +400,6 @@ app.post('/api/bookings/lock', auth, async (req, res) => {
   }
 });
 
-// Unlock slots
 app.post('/api/bookings/unlock', auth, async (req, res) => {
   try {
     const Booking = require('./models/Booking');
@@ -438,11 +415,9 @@ app.post('/api/bookings/unlock', auth, async (req, res) => {
   }
 });
 
-// Add this after the existing setInterval for locks
 setInterval(async () => {
   try {
     const Booking = require('./models/Booking');
-    // Clean expired payment_pending bookings
     const result = await Booking.deleteMany({
       status: 'payment_pending',
       paymentPendingUntil: { $lt: new Date() }
@@ -452,31 +427,12 @@ setInterval(async () => {
     }
   } catch (e) {}
 }, 60 * 1000);
-// ============ END LOCK ROUTES ============
 
-// ============ IMAGE UPLOAD ============
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname);
-    cb(null, uniqueName);
-  }
+// ============ IMAGE UPLOAD (SIMPLE & RELIABLE) ============
+// ✅ Define upload once here
+const upload = multer({ 
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
-
-// ============ IMAGE UPLOAD (MongoDB Base64) ============
-
-// ============ IMAGE UPLOAD ============
-// ✅ Only ONE multer import at the top of the file
-
-// Add body size limit
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
-
-// ✅ Compressed upload with sharp
-const sharp = require('sharp');
 
 app.post('/api/upload', upload.single('image'), async (req, res) => {
   try {
@@ -484,18 +440,14 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
 
-    // Compress image
-    const compressedBuffer = await sharp(req.file.buffer)
-      .resize(800, 600, { fit: 'inside' })
-      .jpeg({ quality: 70 })
-      .toBuffer();
-
-    const base64Image = compressedBuffer.toString('base64');
-    const imageUrl = `data:image/jpeg;base64,${base64Image}`;
+    // Convert to base64
+    const base64Image = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype;
+    const imageUrl = `data:${mimeType};base64,${base64Image}`;
 
     console.log('✅ Image uploaded:', {
-      original: req.file.size,
-      compressed: compressedBuffer.length
+      size: req.file.size,
+      type: mimeType
     });
 
     res.json({ success: true, url: imageUrl });
@@ -511,15 +463,9 @@ app.post('/api/upload/multiple', upload.array('images', 5), async (req, res) => 
       return res.status(400).json({ success: false, message: 'No files uploaded' });
     }
 
-    const urls = await Promise.all(req.files.map(async (file) => {
-      const compressedBuffer = await sharp(file.buffer)
-        .resize(800, 600, { fit: 'inside' })
-        .jpeg({ quality: 70 })
-        .toBuffer();
-      
-      const base64Image = compressedBuffer.toString('base64');
-      return `data:image/jpeg;base64,${base64Image}`;
-    }));
+    const urls = req.files.map(file => 
+      `data:${file.mimetype};base64,${file.buffer.toString('base64')}`
+    );
 
     res.json({ success: true, urls });
   } catch (error) {
@@ -527,20 +473,20 @@ app.post('/api/upload/multiple', upload.array('images', 5), async (req, res) => 
     res.status(500).json({ success: false, message: error.message });
   }
 });
-// ============ END IMAGE UPLOAD ============// ============ END IMAGE UPLOAD ============
 // ============ END IMAGE UPLOAD ============
 
-// Basic route
+// ============ BASIC ROUTE ============
 app.get('/', (req, res) => res.json({ message: 'BookMyTurf API', status: 'running' }));
 
-// 404 handler
+// ============ 404 HANDLER ============
 app.use((req, res) => res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` }));
 
-// Error handler
+// ============ ERROR HANDLER ============
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ success: false, message: 'Server error' });
 });
 
+// ============ START SERVER ============
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
