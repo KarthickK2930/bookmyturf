@@ -467,61 +467,67 @@ const storage = multer.diskStorage({
 });
 
 // ============ IMAGE UPLOAD (MongoDB Base64) ============
-const upload = multer({ 
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
-});
 
-// Single image upload - Store as Base64 in MongoDB
+// ============ IMAGE UPLOAD ============
+// ✅ Only ONE multer import at the top of the file
+
+// Add body size limit
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// ✅ Compressed upload with sharp
+const sharp = require('sharp');
+
 app.post('/api/upload', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
 
-    // Convert image to base64
-    const base64Image = req.file.buffer.toString('base64');
-    const mimeType = req.file.mimetype;
-    const imageUrl = `data:${mimeType};base64,${base64Image}`;
+    // Compress image
+    const compressedBuffer = await sharp(req.file.buffer)
+      .resize(800, 600, { fit: 'inside' })
+      .jpeg({ quality: 70 })
+      .toBuffer();
 
-    console.log('✅ Image converted to base64, size:', req.file.size);
+    const base64Image = compressedBuffer.toString('base64');
+    const imageUrl = `data:image/jpeg;base64,${base64Image}`;
 
-    res.json({ 
-      success: true, 
-      url: imageUrl,
-      message: 'Image uploaded successfully'
+    console.log('✅ Image uploaded:', {
+      original: req.file.size,
+      compressed: compressedBuffer.length
     });
+
+    res.json({ success: true, url: imageUrl });
   } catch (error) {
     console.error('Upload error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// Multiple images upload
 app.post('/api/upload/multiple', upload.array('images', 5), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ success: false, message: 'No files uploaded' });
     }
 
-    const urls = req.files.map(file => {
-      const base64Image = file.buffer.toString('base64');
-      const mimeType = file.mimetype;
-      return `data:${mimeType};base64,${base64Image}`;
-    });
+    const urls = await Promise.all(req.files.map(async (file) => {
+      const compressedBuffer = await sharp(file.buffer)
+        .resize(800, 600, { fit: 'inside' })
+        .jpeg({ quality: 70 })
+        .toBuffer();
+      
+      const base64Image = compressedBuffer.toString('base64');
+      return `data:image/jpeg;base64,${base64Image}`;
+    }));
 
-    console.log('✅ Uploaded', urls.length, 'images as base64');
-
-    res.json({ 
-      success: true, 
-      urls: urls,
-      message: `${urls.length} images uploaded successfully`
-    });
+    res.json({ success: true, urls });
   } catch (error) {
     console.error('Upload error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
-// ============ END IMAGE UPLOAD ============
+// ============ END IMAGE UPLOAD ============// ============ END IMAGE UPLOAD ============
 // ============ END IMAGE UPLOAD ============
 
 // Basic route
